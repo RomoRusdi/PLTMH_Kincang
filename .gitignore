@@ -13,3 +13,4 @@ gateway-buffer.jsonl
 ingest-buffer.jsonl
 .tanstack
 *.tsbuildinfo
+services/logs/

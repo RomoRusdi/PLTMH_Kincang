@@ -126,6 +126,24 @@ Bila stasiun ini sudah punya kalibrasi (menu Kalibrasi Sensor), level dan
 debit di web dihitung ulang dari jarak sensor ke air dan kecepatan permukaan
 memakai kalibrasi tersebut. Nilai bawaan radar tetap tersimpan di `raw_value`.
 
+## Pemasangan di komputer PLTMH
+
+Satu komputer di lokasi menjalankan Mosquitto, ingest, dan gateway; ingest
+mengirim langsung ke Supabase lewat internet (ZeroTier belum diperlukan).
+
+1. Pasang Node.js LTS, Git, dan Mosquitto (installer Windows dari mosquitto.org,
+   otomatis menjadi Windows service di 127.0.0.1:1883).
+2. `git clone` repo, lalu `cd services && npm install`.
+3. Buat `services/.env` dari `.env.example` (SUPABASE_URL dan
+   SUPABASE_SERVICE_ROLE_KEY). Key ini hanya ada di komputer ini.
+4. Atur IP Ethernet ke subnet converter, cek dengan `npm run probe`.
+5. Jalankan `scripts/jalankan-ingest.cmd` dan `scripts/jalankan-gateway.cmd`
+   lewat Task Scheduler (trigger *At startup*). Keduanya menjalankan ulang
+   program otomatis bila berhenti; log di `services/logs/`.
+6. Matikan sleep/hibernate komputer.
+
+Hanya satu komputer yang boleh menjalankan gateway untuk satu radar.
+
 ## Interval data
 
 Gateway membaca PLC dan mengirim data **tiap 60 detik** (`poll_interval_ms` di
