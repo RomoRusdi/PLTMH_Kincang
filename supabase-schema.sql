@@ -1,9 +1,20 @@
 -- ============================================================================
--- RIVER FLOW GUARDIAN - SCADA WEB MONITORING SUNGAI
--- Supabase PostgreSQL Schema - Production Ready
+-- RIVER FLOW GUARDIAN - SISTEM MONITORING SUNGAI UNTUK PLTMH
+-- Supabase PostgreSQL Schema
 -- ============================================================================
--- Jalankan file ini di Supabase SQL Editor secara berurutan dari atas ke bawah.
--- Membutuhkan extension: pgcrypto (gen_random_uuid), pg_trgm (opsional search)
+-- Urutan setup pada project Supabase baru:
+--   1. Jalankan file ini di SQL Editor (sekali jalan, dari atas ke bawah).
+--   2. Jalankan supabase-migration-002-multistasiun-kalibrasi.sql, lalu
+--      supabase-migration-003-ringkasan-stasiun.sql, lalu
+--      supabase-migration-004-interval-retensi.sql.
+--   3. Jalankan supabase-seed.sql (stasiun, perangkat, dan tag).
+--   4. Opsional: supabase-demo-history.sql (riwayat dummy untuk grafik).
+--   5. Buat user pertama di Authentication > Users, lalu jadikan superadmin
+--      (lihat catatan di akhir file ini).
+--
+-- Sistem bersifat monitoring/pendukung keputusan: tidak ada perintah kontrol
+-- yang dikirim ke PLC atau perangkat lapangan. Data masuk hanya melalui
+-- fungsi ingest_telemetry() yang dipanggil service ingest dengan service_role.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -159,6 +170,16 @@ begin
   end loop;
 end $$;
 
+-- Jaring pengaman: jika job pg_cron gagal membuat partisi bulan berikutnya,
+-- data tetap tertampung di partisi default alih-alih INSERT ditolak.
+create table if not exists public.measurements_default
+  partition of public.measurements default;
+
+-- Gateway mengirim ulang data dari buffer saat koneksi pulih; unique index ini
+-- membuat pengiriman ulang idempoten (ON CONFLICT DO NOTHING di ingest).
+create unique index if not exists uq_measurements_station_tag_ts
+  on public.measurements (station_id, tag_id, source_timestamp);
+
 -- ----------------------------------------------------------------------------
 -- 5. TABEL: alarms
 -- ----------------------------------------------------------------------------
@@ -234,52 +255,6 @@ create table if not exists public.events (
 );
 
 comment on table public.events is 'Audit trail seluruh aktivitas sistem dan operator';
-
--- ----------------------------------------------------------------------------
--- 7. TABEL: commands
--- ----------------------------------------------------------------------------
-create table if not exists public.commands (
-  id uuid primary key default gen_random_uuid(),
-  station_id uuid references public.stations(id) on delete cascade,
-  device_id uuid references public.devices(id) on delete cascade,
-  tag_id text,
-  command_type text not null
-    check (command_type in ('start', 'stop', 'reset', 'setpoint', 'open', 'close', 'acknowledge', 'mode_change', 'write_tag', 'restart_device', 'enable_device', 'disable_device', 'ack_all_alarms')),
-  value text,
-  status text not null default 'pending'
-    check (status in ('pending', 'sent', 'executed', 'failed', 'rejected')),
-  requested_by uuid references auth.users(id),
-  requested_at timestamptz not null default now(),
-  executed_at timestamptz,
-  response text,
-  interlock_status text,
-  reject_reason text
-);
-
-comment on table public.commands is 'Perintah operator yang dikirim ke perangkat lapangan';
-
--- Migration idempoten: schema lama belum mengenal command device.
-do $$
-declare
-  v_constraint text;
-begin
-  select conname into v_constraint
-  from pg_constraint
-  where conrelid = 'public.commands'::regclass
-    and contype = 'c'
-    and pg_get_constraintdef(oid) like '%command_type%'
-  limit 1;
-  if v_constraint is not null then
-    execute format('alter table public.commands drop constraint %I', v_constraint);
-  end if;
-  if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.commands'::regclass and conname = 'commands_command_type_check'
-  ) then
-    alter table public.commands add constraint commands_command_type_check
-      check (command_type in ('start', 'stop', 'reset', 'setpoint', 'open', 'close', 'acknowledge', 'mode_change', 'write_tag', 'restart_device', 'enable_device', 'disable_device', 'ack_all_alarms'));
-  end if;
-end $$;
 
 -- ----------------------------------------------------------------------------
 -- 8. TABEL: profiles (extend auth.users)
@@ -369,16 +344,18 @@ create index if not exists idx_events_station_created on public.events (station_
 create index if not exists idx_devices_station_status on public.devices (station_id, status);
 create index if not exists idx_tags_station on public.tags (station_id);
 create index if not exists idx_tags_device on public.tags (device_id);
-create index if not exists idx_commands_device_status on public.commands (device_id, status);
 create index if not exists idx_alarms_tag on public.alarms (tag_id);
 create index if not exists idx_events_actor on public.events (actor_id);
 
 -- ----------------------------------------------------------------------------
 -- 12. VIEWS
 -- ----------------------------------------------------------------------------
+-- security_invoker = true: view dievaluasi dengan hak user pemanggil sehingga
+-- RLS tabel dasar tetap berlaku. Tanpa opsi ini view berjalan sebagai owner
+-- (postgres) dan dapat dibaca siapa pun yang memegang anon key.
 
 -- latest_measurements: nilai terbaru setiap tag
-create or replace view public.latest_measurements as
+create or replace view public.latest_measurements with (security_invoker = true) as
 select distinct on (m.station_id, m.tag_id)
   m.tag_id,
   m.station_id,
@@ -403,7 +380,7 @@ comment on view public.latest_measurements is 'Nilai terbaru untuk setiap tag';
 -- Drop diperlukan karena device_id ditambahkan ke projection view; PostgreSQL
 -- tidak mengizinkan CREATE OR REPLACE mengubah urutan/kolom view.
 drop view if exists public.active_alarms_view;
-create or replace view public.active_alarms_view as
+create or replace view public.active_alarms_view with (security_invoker = true) as
 select
   a.id,
   a.station_id,
@@ -440,7 +417,7 @@ order by
 comment on view public.active_alarms_view is 'Alarm aktif dan acknowledged beserta info stasiun & tag';
 
 -- device_health_view: status device + menit sejak last_seen + is_online
-create or replace view public.device_health_view as
+create or replace view public.device_health_view with (security_invoker = true) as
 select
   d.id,
   d.station_id,
@@ -467,7 +444,7 @@ from public.devices d;
 comment on view public.device_health_view is 'Status kesehatan semua device dengan indikator online/offline';
 
 -- daily_energy_summary: agregat harian untuk tag daya (POWER.ACTIVE_POWER / ENERGY_KWH)
-create or replace view public.daily_energy_summary as
+create or replace view public.daily_energy_summary with (security_invoker = true) as
 select
   m.station_id,
   date_trunc('day', m.source_timestamp)::date as day,
@@ -691,46 +668,136 @@ $$;
 
 comment on function public.acknowledge_alarm is 'Mengakui (acknowledge) alarm aktif dan mencatat event terkait';
 
-create or replace function public.send_command(
-  p_station_id uuid,
-  p_device_id uuid default null,
-  p_tag_id text default null,
-  p_command_type text default null,
-  p_value text default null
-)
-returns public.commands
+-- ingest_telemetry: satu-satunya jalur masuk data lapangan ke database.
+-- Dipanggil oleh service ingest (subscriber MQTT) dengan service_role key.
+-- Payload dibuat gateway PC dari hasil pembacaan register PLC:
+-- {
+--   "station_id": "uuid",
+--   "gateway_id": "uuid",              -- device gateway pengirim (opsional)
+--   "ts": "2026-11-05T10:00:00Z",       -- waktu baca PLC menurut jam gateway (NTP)
+--   "seq": 123,                         -- nomor urut pesan (opsional)
+--   "values": [
+--     {"tag": "HYDRO.WATER_LEVEL", "value": 1.234, "quality": "good", "raw": "1234"}
+--   ]
+-- }
+-- Nilai per tag divalidasi satu per satu; tag yang gagal validasi ditolak
+-- tanpa membatalkan tag lain dalam payload yang sama.
+create or replace function public.ingest_telemetry(p_payload jsonb)
+returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_command public.commands;
+  v_station_id uuid;
+  v_gateway_id uuid;
+  v_ts timestamptz;
+  v_seq bigint;
+  v_item jsonb;
+  v_tag record;
+  v_quality text;
+  v_value float8;
+  v_rows integer;
+  v_accepted integer := 0;
+  v_duplicate integer := 0;
+  v_rejected jsonb := '[]'::jsonb;
 begin
-  if auth.uid() is null then raise exception 'Autentikasi diperlukan'; end if;
-  if not public.has_min_role('operator') then raise exception 'Role tidak memiliki izin mengirim command'; end if;
-  if p_station_id is null or not public.current_user_can_access_station(p_station_id) then
-    raise exception 'Stasiun tidak dapat diakses';
-  end if;
-  if p_device_id is not null and not exists (
-    select 1 from public.devices where id = p_device_id and station_id = p_station_id
-  ) then raise exception 'Device tidak sesuai stasiun'; end if;
-  if p_tag_id is not null and not exists (
-    select 1 from public.tags where tag_id = p_tag_id and station_id = p_station_id
-  ) then raise exception 'Tag tidak sesuai stasiun'; end if;
-  if p_command_type is null or p_command_type not in (
-    'start', 'stop', 'reset', 'setpoint', 'open', 'close', 'acknowledge',
-    'mode_change', 'write_tag', 'restart_device', 'enable_device',
-    'disable_device', 'ack_all_alarms'
-  ) then raise exception 'Tipe command tidak valid'; end if;
+  begin
+    v_station_id := (p_payload->>'station_id')::uuid;
+    v_gateway_id := nullif(p_payload->>'gateway_id', '')::uuid;
+    v_ts := (p_payload->>'ts')::timestamptz;
+    v_seq := nullif(p_payload->>'seq', '')::bigint;
+  exception when others then
+    raise exception 'Payload tidak valid: %', sqlerrm;
+  end;
 
-  insert into public.commands (station_id, device_id, tag_id, command_type, value, requested_by)
-  values (p_station_id, p_device_id, p_tag_id, p_command_type, p_value, auth.uid())
-  returning * into v_command;
-  return v_command;
+  if v_station_id is null or v_ts is null then
+    raise exception 'station_id dan ts wajib diisi';
+  end if;
+  if not exists (select 1 from public.stations where id = v_station_id) then
+    raise exception 'Stasiun % tidak dikenal', v_station_id;
+  end if;
+  if v_ts > now() + interval '5 minutes' then
+    raise exception 'Timestamp % berada di masa depan, periksa sinkronisasi NTP gateway', v_ts;
+  end if;
+  if jsonb_typeof(p_payload->'values') is distinct from 'array' then
+    raise exception 'Field values harus berupa array';
+  end if;
+
+  for v_item in select * from jsonb_array_elements(p_payload->'values') loop
+    select t.tag_id, t.device_id, t.enabled into v_tag
+    from public.tags t
+    where t.tag_id = v_item->>'tag' and t.station_id = v_station_id;
+
+    if not found then
+      v_rejected := v_rejected || jsonb_build_object('tag', v_item->>'tag', 'reason', 'tag tidak terdaftar pada stasiun');
+      continue;
+    end if;
+    if not v_tag.enabled then
+      v_rejected := v_rejected || jsonb_build_object('tag', v_item->>'tag', 'reason', 'tag nonaktif');
+      continue;
+    end if;
+
+    v_quality := coalesce(v_item->>'quality', 'good');
+    if v_quality not in ('good', 'bad', 'uncertain', 'stale', 'comm_failure') then
+      v_rejected := v_rejected || jsonb_build_object('tag', v_item->>'tag', 'reason', 'quality tidak valid');
+      continue;
+    end if;
+
+    case jsonb_typeof(v_item->'value')
+      when 'number' then
+        v_value := (v_item->>'value')::float8;
+      when 'boolean' then
+        v_value := case when (v_item->>'value')::boolean then 1 else 0 end;
+      when 'null' then
+        -- Sensor tidak terbaca: simpan sebagai kualitas buruk agar celah data terlihat.
+        v_value := null;
+        if v_quality = 'good' then v_quality := 'bad'; end if;
+      else
+        if v_item ? 'value' then
+          v_rejected := v_rejected || jsonb_build_object('tag', v_item->>'tag', 'reason', 'value harus berupa angka');
+          continue;
+        end if;
+        v_value := null;
+        if v_quality = 'good' then v_quality := 'bad'; end if;
+    end case;
+
+    insert into public.measurements (tag_id, station_id, value, quality, source_timestamp, sequence_id, raw_value)
+    values (v_tag.tag_id, v_station_id, v_value, v_quality, v_ts, v_seq, v_item->>'raw')
+    on conflict (station_id, tag_id, source_timestamp) do nothing;
+    get diagnostics v_rows = row_count;
+
+    if v_rows = 0 then
+      v_duplicate := v_duplicate + 1;
+      continue;
+    end if;
+    v_accepted := v_accepted + 1;
+
+    -- Perangkat pemilik tag dianggap hidup selama masih mengirim nilai GOOD.
+    if v_quality = 'good' and v_tag.device_id is not null then
+      update public.devices
+      set last_seen = greatest(coalesce(last_seen, v_ts), v_ts),
+          status = case when status in ('offline', 'error') then 'online' else status end
+      where id = v_tag.device_id;
+    end if;
+  end loop;
+
+  if v_gateway_id is not null then
+    update public.devices
+    set last_seen = now(),
+        status = case when status in ('offline', 'error') then 'online' else status end
+    where id = v_gateway_id and station_id = v_station_id;
+  end if;
+
+  return jsonb_build_object(
+    'accepted', v_accepted,
+    'duplicate', v_duplicate,
+    'rejected', v_rejected
+  );
 end;
 $$;
 
-comment on function public.send_command is 'Membuat command tervalidasi dengan actor dari auth.uid()';
+comment on function public.ingest_telemetry is 'Validasi dan simpan telemetry dari gateway; hanya untuk service_role';
 
 -- ----------------------------------------------------------------------------
 -- 14. TRIGGER FUNCTIONS
@@ -886,8 +953,9 @@ declare
   v_created integer := 0;
   v_cleared integer := 0;
 begin
-  if auth.uid() is null
-     and coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
+  -- auth.role() membaca claim JWT (PostgREST) maupun setting yang diisi
+  -- run_alarm_engine_all_stations saat dipanggil pg_cron.
+  if auth.uid() is null and coalesce(auth.role(), '') <> 'service_role' then
     raise exception 'Autentikasi diperlukan';
   end if;
   if auth.uid() is not null and not public.current_user_can_access_station(p_station_id) then
@@ -1022,16 +1090,22 @@ grant execute on function public.run_alarm_engine_all_stations() to service_role
 --   $$select public.run_alarm_engine_all_stations()$$);
 
 -- 14.4 Audit UPDATE profiles -> catat di events
+-- security definer: role authenticated tidak punya akses baca ke auth.users,
+-- sehingga tanpa ini setiap UPDATE profiles (termasuk last_login) gagal.
 create or replace function public.trg_audit_profile_update()
 returns trigger
 language plpgsql
+security definer
+set search_path = public
 as $$
 declare
   v_actor_email text;
 begin
-  select email into v_actor_email from auth.users where id = auth.uid();
+  if old.role is distinct from new.role
+     or old.is_active is distinct from new.is_active
+     or old.station_access is distinct from new.station_access then
+    select email into v_actor_email from auth.users where id = auth.uid();
 
-  if old.role is distinct from new.role or old.is_active is distinct from new.is_active then
     insert into public.events (
       event_type, severity, message, actor_id, actor_email, old_value, new_value, metadata
     ) values (
@@ -1052,6 +1126,59 @@ drop trigger if exists audit_profile_update on public.profiles;
 create trigger audit_profile_update
   after update on public.profiles
   for each row execute function public.trg_audit_profile_update();
+
+-- 14.4b Lindungi kolom hak akses. Policy profiles_update mengizinkan user
+-- mengubah barisnya sendiri (nama, telepon, last_login); tanpa trigger ini
+-- user juga bisa menaikkan role-nya sendiri menjadi superadmin.
+create or replace function public.trg_protect_profile_privileges()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- SQL Editor / service_role tidak membawa JWT user: dianggap administrasi.
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if (new.id is distinct from old.id
+      or new.role is distinct from old.role
+      or new.station_access is distinct from old.station_access
+      or new.is_active is distinct from old.is_active)
+     and not public.has_min_role('superadmin') then
+    raise exception 'Hanya superadmin yang dapat mengubah role, akses stasiun, atau status akun';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_profile_privileges on public.profiles;
+create trigger protect_profile_privileges
+  before update on public.profiles
+  for each row execute function public.trg_protect_profile_privileges();
+
+-- 14.4c Setiap user Auth baru otomatis mendapat profile 'viewer' tanpa akses
+-- stasiun. Superadmin yang memberi role dan station_access setelahnya.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name)
+  values (new.id, nullif(new.raw_user_meta_data->>'full_name', ''))
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 
 -- 14.5 Audit UPDATE device status -> catat di events
 create or replace function public.trg_audit_device_status()
@@ -1109,7 +1236,8 @@ security definer
 set search_path = public
 stable
 as $$
-  select role from public.profiles where id = auth.uid();
+  -- Akun nonaktif diperlakukan seperti tidak punya role sama sekali.
+  select role from public.profiles where id = auth.uid() and is_active;
 $$;
 
 create or replace function public.has_min_role(p_min_role text)
@@ -1159,7 +1287,6 @@ alter table public.tags enable row level security;
 alter table public.measurements enable row level security;
 alter table public.alarms enable row level security;
 alter table public.events enable row level security;
-alter table public.commands enable row level security;
 alter table public.profiles enable row level security;
 alter table public.monthly_reports enable row level security;
 alter table public.breakdown_reports enable row level security;
@@ -1187,10 +1314,13 @@ create policy devices_select on public.devices
   for select to authenticated using (public.current_user_can_access_station(station_id));
 
 drop policy if exists devices_cud on public.devices;
+drop policy if exists devices_insert on public.devices;
 create policy devices_insert on public.devices
   for insert to authenticated with check (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
+drop policy if exists devices_update on public.devices;
 create policy devices_update on public.devices
   for update to authenticated using (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
+drop policy if exists devices_delete on public.devices;
 create policy devices_delete on public.devices
   for delete to authenticated using (public.has_min_role('superadmin') and public.current_user_can_access_station(station_id));
 
@@ -1199,10 +1329,13 @@ drop policy if exists tags_select on public.tags;
 create policy tags_select on public.tags
   for select to authenticated using (public.current_user_can_access_station(station_id));
 
+drop policy if exists tags_insert on public.tags;
 create policy tags_insert on public.tags
   for insert to authenticated with check (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
+drop policy if exists tags_update on public.tags;
 create policy tags_update on public.tags
   for update to authenticated using (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
+drop policy if exists tags_delete on public.tags;
 create policy tags_delete on public.tags
   for delete to authenticated using (public.has_min_role('superadmin'));
 
@@ -1211,9 +1344,11 @@ drop policy if exists measurements_select on public.measurements;
 create policy measurements_select on public.measurements
   for select to authenticated using (public.current_user_can_access_station(station_id));
 
+-- Data lapangan masuk lewat ingest_telemetry (service_role). Insert dari
+-- browser hanya untuk koreksi data manual oleh admin.
 drop policy if exists measurements_insert on public.measurements;
 create policy measurements_insert on public.measurements
-  for insert to authenticated with check (public.has_min_role('operator') and public.current_user_can_access_station(station_id));
+  for insert to authenticated with check (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
 
 drop policy if exists measurements_update on public.measurements;
 create policy measurements_update on public.measurements
@@ -1268,34 +1403,25 @@ create policy profiles_update on public.profiles
 drop policy if exists profiles_insert on public.profiles;
 create policy profiles_insert on public.profiles
   for insert to authenticated
-  with check (id = auth.uid() or public.has_min_role('admin'));
+  with check (public.has_min_role('superadmin'));
+-- Profile user biasa dibuat otomatis oleh trigger on_auth_user_created.
 
 drop policy if exists profiles_delete on public.profiles;
 create policy profiles_delete on public.profiles
   for delete to authenticated using (public.has_min_role('superadmin'));
-
--- ---- commands ----
-drop policy if exists commands_select on public.commands;
-create policy commands_select on public.commands
-  for select to authenticated using (public.has_min_role('operator') and public.current_user_can_access_station(station_id));
-
-drop policy if exists commands_insert on public.commands;
-create policy commands_insert on public.commands
-  for insert to authenticated with check (false);
-
-drop policy if exists commands_update on public.commands;
-create policy commands_update on public.commands
-  for update to authenticated using (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
 
 -- ---- monthly_reports ----
 drop policy if exists monthly_reports_select on public.monthly_reports;
 create policy monthly_reports_select on public.monthly_reports
   for select to authenticated using (public.current_user_can_access_station(station_id));
 
+drop policy if exists monthly_reports_insert on public.monthly_reports;
 create policy monthly_reports_insert on public.monthly_reports
   for insert to authenticated with check (public.has_min_role('operator') and public.current_user_can_access_station(station_id));
+drop policy if exists monthly_reports_update on public.monthly_reports;
 create policy monthly_reports_update on public.monthly_reports
   for update to authenticated using (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
+drop policy if exists monthly_reports_delete on public.monthly_reports;
 create policy monthly_reports_delete on public.monthly_reports
   for delete to authenticated using (public.has_min_role('superadmin') and public.current_user_can_access_station(station_id));
 
@@ -1304,10 +1430,13 @@ drop policy if exists breakdown_reports_select on public.breakdown_reports;
 create policy breakdown_reports_select on public.breakdown_reports
   for select to authenticated using (public.current_user_can_access_station(station_id));
 
+drop policy if exists breakdown_reports_insert on public.breakdown_reports;
 create policy breakdown_reports_insert on public.breakdown_reports
   for insert to authenticated with check (public.has_min_role('operator') and public.current_user_can_access_station(station_id));
+drop policy if exists breakdown_reports_update on public.breakdown_reports;
 create policy breakdown_reports_update on public.breakdown_reports
   for update to authenticated using (public.has_min_role('admin') and public.current_user_can_access_station(station_id));
+drop policy if exists breakdown_reports_delete on public.breakdown_reports;
 create policy breakdown_reports_delete on public.breakdown_reports
   for delete to authenticated using (public.has_min_role('superadmin') and public.current_user_can_access_station(station_id));
 
@@ -1315,94 +1444,115 @@ create policy breakdown_reports_delete on public.breakdown_reports
 -- 17. REALTIME PUBLICATION
 -- ----------------------------------------------------------------------------
 -- Aktifkan replication untuk tabel yang perlu dipantau real-time di frontend.
-alter publication supabase_realtime add table public.measurements;
-alter publication supabase_realtime add table public.alarms;
-alter publication supabase_realtime add table public.devices;
+-- measurements dipartisi; tanpa publish_via_partition_root perubahan dikirim
+-- atas nama partisi (measurements_2026_11) sehingga subscriber tabel
+-- 'measurements' di frontend tidak pernah menerima event.
+alter publication supabase_realtime set (publish_via_partition_root = true);
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['measurements', 'alarms', 'devices'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 
 -- ----------------------------------------------------------------------------
--- 18. SEED DATA
+-- 18. HAK EKSEKUSI FUNCTION
 -- ----------------------------------------------------------------------------
+-- PostgreSQL memberi EXECUTE ke PUBLIC secara default, dan Supabase juga ke
+-- anon. Cabut semuanya, lalu beri hak secara eksplisit per peran.
+do $$
+declare
+  f record;
+begin
+  for f in
+    select p.oid::regprocedure as sig
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.prokind = 'f'
+      and not exists (
+        select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e'
+      )
+  loop
+    execute format('revoke execute on function %s from public, anon', f.sig);
+  end loop;
+end $$;
 
--- Station tetap (UUID fix agar bisa dirujuk dari .env VITE_STATION_ID)
-insert into public.stations (id, name, location, river_name, latitude, longitude, status, description)
-values (
-  'aaaaaaaa-0001-0000-0000-000000000001',
-  'Stasiun Sungai Kincang',
-  'Banjarnegara, Jawa Tengah',
-  'Kali Kincang',
-  -7.3200, 109.7100,
-  'active',
-  'Stasiun pemantauan PLTMH dan hidrologi Kali Kincang'
-)
-on conflict (id) do nothing;
+-- Dipakai policy RLS dan halaman web (user login).
+grant execute on function public.current_user_role() to authenticated;
+grant execute on function public.has_min_role(text) to authenticated;
+grant execute on function public.current_user_can_access_station(uuid) to authenticated;
+grant execute on function public.get_station_kpi(uuid, integer) to authenticated;
+grant execute on function public.get_trend_data(text, timestamptz, timestamptz, integer) to authenticated;
+grant execute on function public.get_alarm_statistics(uuid, integer) to authenticated;
+grant execute on function public.acknowledge_alarm(uuid, text) to authenticated;
+grant execute on function public.run_alarm_engine(uuid) to authenticated;
 
--- Devices
-insert into public.devices (id, station_id, name, device_type, protocol, modbus_address, status, firmware_version, manufacturer, model)
-values
-  ('bbbbbbbb-0001-0000-0000-000000000001', 'aaaaaaaa-0001-0000-0000-000000000001', 'Radar Flow Meter', 'radar_flowmeter', 'modbus_rtu', 1, 'online', 'v2.1.0', 'OTT HydroMet', 'RLS-1000'),
-  ('bbbbbbbb-0002-0000-0000-000000000001', 'aaaaaaaa-0001-0000-0000-000000000001', 'Power Meter', 'power_meter', 'modbus_rtu', 2, 'online', 'v1.5.2', 'Schneider', 'PM5110'),
-  ('bbbbbbbb-0003-0000-0000-000000000001', 'aaaaaaaa-0001-0000-0000-000000000001', 'PLC Kontrol Turbin', 'plc', 'modbus_tcp', null, 'online', 'v3.0.1', 'Siemens', 'S7-1200'),
-  ('bbbbbbbb-0004-0000-0000-000000000001', 'aaaaaaaa-0001-0000-0000-000000000001', 'Gateway 4G', 'gateway', 'mqtt', null, 'online', 'v1.0.4', 'Teltonika', 'RUT240')
-on conflict (id) do nothing;
+-- Hanya service tepercaya (service ingest, scheduler).
+revoke execute on function public.ingest_telemetry(jsonb) from authenticated;
+revoke execute on function public.run_alarm_engine_all_stations() from authenticated;
+grant execute on function public.ingest_telemetry(jsonb) to service_role;
+grant execute on function public.run_alarm_engine_all_stations() to service_role;
 
--- Tags
-insert into public.tags (station_id, device_id, tag_id, name, unit, alarm_high, alarm_low, display_precision)
-values
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0001-0000-0000-000000000001', 'HYDRO.WATER_LEVEL', 'Tinggi Muka Air', 'm', 2.5, 0.4, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0001-0000-0000-000000000001', 'HYDRO.VELOCITY', 'Kecepatan Aliran', 'm/s', null, null, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0001-0000-0000-000000000001', 'HYDRO.FLOW_RATE', 'Debit Aliran', 'm3/s', null, null, 3),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0001-0000-0000-000000000001', 'HYDRO.CUMULATIVE_VOL', 'Volume Kumulatif', 'm3', null, null, 1),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0001-0000-0000-000000000001', 'HYDRO.RADAR_TEMP', 'Suhu Sensor Radar', 'C', null, null, 1),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0001-0000-0000-000000000001', 'HYDRO.ECHO_AMPLITUDE', 'Amplitudo Echo', 'dB', null, null, 1),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.ACTIVE_POWER', 'Daya Aktif', 'kW', 150, null, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.REACTIVE_POWER', 'Daya Reaktif', 'kVAr', null, null, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.VOLTAGE_L1', 'Tegangan L1', 'V', null, null, 1),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.CURRENT_L1', 'Arus L1', 'A', null, null, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.FREQUENCY', 'Frekuensi', 'Hz', null, null, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.ENERGY_KWH', 'Energi Kumulatif', 'kWh', null, null, 1),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0002-0000-0000-000000000001', 'POWER.POWER_FACTOR', 'Faktor Daya', 'PF', null, null, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0003-0000-0000-000000000001', 'TURBINE.RPM', 'Putaran Turbin', 'rpm', 1600, null, 0),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0003-0000-0000-000000000001', 'TURBINE.STATUS', 'Status Turbin', '-', null, null, 0),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0003-0000-0000-000000000001', 'SYS.PLC_STATUS', 'Status PLC', '-', null, null, 0),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0004-0000-0000-000000000001', 'SYS.GATEWAY_STATUS', 'Status Gateway', '-', null, null, 0),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0004-0000-0000-000000000001', 'SYS.BATTERY_VOLTAGE', 'Tegangan Baterai', 'V', null, 11, 2),
-  ('aaaaaaaa-0001-0000-0000-000000000001', 'bbbbbbbb-0004-0000-0000-000000000001', 'SYS.SIGNAL_STRENGTH', 'Kekuatan Sinyal', 'dBm', null, null, 0)
-on conflict (tag_id) do nothing;
+-- ----------------------------------------------------------------------------
+-- 19. JADWAL OTOMATIS (pg_cron)
+-- ----------------------------------------------------------------------------
+-- Alarm data stale / device offline harus tetap dievaluasi walaupun tidak ada
+-- dashboard yang terbuka, dan partisi bulan depan harus sudah ada sebelum
+-- data bulan depan masuk. Jika pg_cron tidak tersedia, aktifkan lewat
+-- Dashboard > Integrations > Cron lalu jalankan ulang blok ini.
+do $$
+begin
+  create extension if not exists pg_cron;
+exception when others then
+  raise notice 'pg_cron tidak dapat diaktifkan otomatis: %', sqlerrm;
+end $$;
 
--- Nilai awal yang tersimpan di database. Gateway dapat menggantinya dengan
--- measurement lapangan berikutnya tanpa perubahan pada aplikasi.
-with seed(tag_id, value) as (
-  values
-    ('HYDRO.WATER_LEVEL', 1.45),
-    ('HYDRO.VELOCITY', 1.10),
-    ('HYDRO.FLOW_RATE', 3.20),
-    ('POWER.ACTIVE_POWER', 50.00),
-    ('POWER.ENERGY_KWH', 123456.70),
-    ('TURBINE.RPM', 1250.00),
-    ('SYS.BATTERY_VOLTAGE', 12.80),
-    ('SYS.SIGNAL_STRENGTH', -72.00)
-), stamped as (
-  select tag_id, value, date_trunc('hour', now()) as source_timestamp from seed
-)
-insert into public.measurements (tag_id, station_id, value, quality, source_timestamp)
-select s.tag_id, 'aaaaaaaa-0001-0000-0000-000000000001', s.value, 'good', s.source_timestamp
-from stamped s
-where not exists (
-  select 1 from public.measurements m
-  where m.tag_id = s.tag_id
-    and m.station_id = 'aaaaaaaa-0001-0000-0000-000000000001'
-    and m.source_timestamp = s.source_timestamp
-);
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule(
+      'rfg-alarm-engine',
+      '* * * * *',
+      $cron$select public.run_alarm_engine_all_stations()$cron$
+    );
+    perform cron.schedule(
+      'rfg-measurement-partitions',
+      '0 1 * * *',
+      $cron$
+        select public.create_measurements_partition((date_trunc('month', now()) + interval '1 month')::date);
+        select public.create_measurements_partition((date_trunc('month', now()) + interval '2 month')::date);
+      $cron$
+    );
+  else
+    raise notice 'pg_cron belum aktif: alarm engine hanya berjalan saat dashboard dibuka.';
+  end if;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- SELESAI
 -- ----------------------------------------------------------------------------
--- Catatan:
--- 1. Setelah menjalankan schema ini, buat user pertama melalui Supabase Auth
---    (Dashboard > Authentication > Add User), lalu insert row ke public.profiles
---    dengan role 'superadmin' agar bisa mengakses semua fitur.
--- 2. Jalankan public.create_measurements_partition(current_date) via pg_cron
---    setiap awal bulan untuk membuat partisi measurements bulan berikutnya.
--- 3. Edge Function untuk ingest data dari gateway fisik (Bagian 11 instruksi)
---    cukup melakukan INSERT ke public.measurements; trigger threshold akan
---    otomatis membuat alarm.
+-- Catatan setelah menjalankan schema:
+-- 1. Jalankan supabase-seed.sql untuk membuat stasiun, perangkat, dan tag.
+-- 2. Matikan pendaftaran publik: Authentication > Sign In / Providers >
+--    nonaktifkan "Allow new users to sign up". Akun dibuat oleh admin.
+-- 3. Buat user pertama di Authentication > Users > Add user, lalu jadikan
+--    superadmin dengan akses ke stasiun (jalankan di SQL Editor):
+--
+--      update public.profiles
+--      set role = 'superadmin',
+--          full_name = 'Nama Admin',
+--          station_access = array['5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10'::uuid]
+--      where id = (select id from auth.users where email = 'admin@contoh.com');
+--
+-- 4. Service ingest memanggil ingest_telemetry() memakai SERVICE ROLE key.
+--    Key tersebut hanya boleh disimpan di .env service ingest, tidak boleh
+--    masuk ke frontend, gateway lapangan, atau repository.

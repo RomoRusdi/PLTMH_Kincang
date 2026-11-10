@@ -1,16 +1,19 @@
 {
-  "name": "River Flow Guardian SCADA",
-  "short_name": "RFG SCADA",
-  "description": "Monitoring dan kendali aman stasiun sungai River Flow Guardian.",
+  "name": "Digihidrotech Monitoring",
+  "short_name": "Digihidrotech",
+  "description": "Monitoring aliran sungai dan kelistrikan PLTMH secara real-time.",
   "lang": "id-ID",
   "dir": "ltr",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#0b1220",
   "background_color": "#0b1220",
-  "categories": ["business", "utilities"],
+  "categories": [
+    "business",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/icons/icon.svg",

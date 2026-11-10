@@ -35,21 +35,6 @@ export type EventType =
   | 'system'
   | 'data_correction'
 export type EventSeverity = 'critical' | 'warning' | 'info' | 'debug'
-export type CommandType =
-  | 'start'
-  | 'stop'
-  | 'reset'
-  | 'setpoint'
-  | 'open'
-  | 'close'
-  | 'acknowledge'
-  | 'mode_change'
-  | 'write_tag'
-  | 'restart_device'
-  | 'enable_device'
-  | 'disable_device'
-  | 'ack_all_alarms'
-export type CommandStatus = 'pending' | 'sent' | 'executed' | 'failed' | 'rejected'
 export type UserRole = 'superadmin' | 'admin' | 'operator' | 'technician' | 'viewer'
 export type CauseCategory =
   | 'lightning'
@@ -60,6 +45,56 @@ export type CauseCategory =
   | 'maintenance'
   | 'other'
 export type BreakdownStatus = 'open' | 'in_progress' | 'resolved'
+
+export type SectionType = 'rectangle' | 'trapezoid'
+export type CalibrationMethod = 'manual' | 'field_reference'
+
+/** Parameter kalibrasi radar satu stasiun (lihat migrasi 002). */
+export interface CalibrationParams {
+  install_height_m: number
+  level_offset_m: number
+  section_type: SectionType
+  bottom_width_m: number
+  side_slope: number
+  velocity_coefficient: number
+}
+
+export interface StationCalibration extends CalibrationParams {
+  id: string
+  station_id: string
+  version: number
+  method: CalibrationMethod
+  notes: string | null
+  effective_from: string
+  created_by: string | null
+  created_by_email: string | null
+  created_at: string
+}
+
+/** Baris tabel calibration_references. */
+export type CalibrationReferenceRow = {
+  id: string
+  calibration_id: string
+  station_id: string
+  measured_at: string
+  ref_level_m: number | null
+  ref_velocity_ms: number | null
+  ref_flow_m3s: number | null
+  radar_air_gap_m: number | null
+  radar_velocity_ms: number | null
+  notes: string | null
+  created_at: string
+}
+
+export interface CalibrationReferenceInput {
+  measured_at: string
+  ref_level_m: number | null
+  ref_velocity_ms: number | null
+  ref_flow_m3s: number | null
+  radar_air_gap_m: number | null
+  radar_velocity_ms: number | null
+  notes?: string | null
+}
 
 export interface Station {
   id: string
@@ -72,8 +107,31 @@ export interface Station {
   river_name: string | null
   installation_date: string | null
   elevation_m: number | null
+  /** Batas umur kalibrasi sebelum stasiun ditandai perlu kalibrasi ulang. */
+  calibration_interval_days: number
   created_at: string
   updated_at: string
+}
+
+/** Satu baris view station_overview (migrasi 003). */
+export type StationOverview = {
+  id: string
+  name: string
+  location: string
+  status: StationStatus
+  calibration_interval_days: number
+  last_data_at: string | null
+  level_m: number | null
+  level_quality: Quality | null
+  velocity_ms: number | null
+  velocity_quality: Quality | null
+  flow_m3s: number | null
+  flow_quality: Quality | null
+  active_alarms: number
+  critical_alarms: number
+  calibration_version: number | null
+  calibration_at: string | null
+  calibration_method: CalibrationMethod | null
 }
 
 export interface Device {
@@ -168,22 +226,6 @@ export interface Event {
   user_agent: string | null
   metadata: Record<string, unknown>
   created_at: string
-}
-
-export interface Command {
-  id: string
-  station_id: string | null
-  device_id: string | null
-  tag_id: string | null
-  command_type: CommandType
-  value: string | null
-  status: CommandStatus
-  requested_by: string | null
-  requested_at: string
-  executed_at: string | null
-  response: string | null
-  interlock_status: string | null
-  reject_reason: string | null
 }
 
 export interface Profile {
@@ -365,7 +407,7 @@ export interface Database {
           id: string; name: string; location: string
           latitude: number | null; longitude: number | null; description: string | null
           status: StationStatus; river_name: string | null; installation_date: string | null
-          elevation_m: number | null; created_at: string; updated_at: string
+          elevation_m: number | null; calibration_interval_days: number; created_at: string; updated_at: string
         }
         Insert: {
           id?: string; name: string; location: string
@@ -377,7 +419,7 @@ export interface Database {
           id?: string; name?: string; location?: string
           latitude?: number | null; longitude?: number | null; description?: string | null
           status?: StationStatus; river_name?: string | null; installation_date?: string | null
-          elevation_m?: number | null; created_at?: string; updated_at?: string
+          elevation_m?: number | null; calibration_interval_days?: number; created_at?: string; updated_at?: string
         }
         Relationships: []
       }
@@ -492,27 +534,6 @@ export interface Database {
         }
         Relationships: []
       }
-      commands: {
-        Row: {
-          id: string; station_id: string | null; device_id: string | null; tag_id: string | null
-          command_type: CommandType; value: string | null; status: CommandStatus; requested_by: string | null
-          requested_at: string; executed_at: string | null; response: string | null
-          interlock_status: string | null; reject_reason: string | null
-        }
-        Insert: {
-          id?: string; station_id?: string | null; device_id?: string | null; tag_id?: string | null
-          command_type: CommandType; value?: string | null; status?: CommandStatus; requested_by?: string | null
-          requested_at?: string; executed_at?: string | null; response?: string | null
-          interlock_status?: string | null; reject_reason?: string | null
-        }
-        Update: {
-          id?: string; station_id?: string | null; device_id?: string | null; tag_id?: string | null
-          command_type?: CommandType; value?: string | null; status?: CommandStatus; requested_by?: string | null
-          requested_at?: string; executed_at?: string | null; response?: string | null
-          interlock_status?: string | null; reject_reason?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           id: string; full_name: string | null; role: UserRole; station_access: string[]
@@ -591,6 +612,28 @@ export interface Database {
         }
         Relationships: []
       }
+      // Hanya dibaca dari web; penulisan lewat RPC apply_calibration.
+      station_calibrations: {
+        Row: {
+          id: string; station_id: string; version: number; install_height_m: number; level_offset_m: number
+          section_type: SectionType; bottom_width_m: number; side_slope: number; velocity_coefficient: number
+          method: CalibrationMethod; notes: string | null; effective_from: string
+          created_by: string | null; created_by_email: string | null; created_at: string
+        }
+        Insert: { id?: string }
+        Update: { id?: string }
+        Relationships: []
+      }
+      calibration_references: {
+        Row: {
+          id: string; calibration_id: string; station_id: string; measured_at: string
+          ref_level_m: number | null; ref_velocity_ms: number | null; ref_flow_m3s: number | null
+          radar_air_gap_m: number | null; radar_velocity_ms: number | null; notes: string | null; created_at: string
+        }
+        Insert: { id?: string }
+        Update: { id?: string }
+        Relationships: []
+      }
     }
     Views: {
       latest_measurements: {
@@ -622,6 +665,10 @@ export interface Database {
         }
         Relationships: []
       }
+      station_overview: {
+        Row: StationOverview
+        Relationships: []
+      }
       daily_energy_summary: {
         Row: {
           station_id: string | null; day: string; avg_power_kw: number | null
@@ -641,8 +688,16 @@ export interface Database {
           period_hours: number; generated_at: string
         }
       }
+      apply_calibration: {
+        Args: { p_station_id: string; p_params: CalibrationParams; p_references?: CalibrationReferenceInput[]; p_notes?: string | null }
+        Returns: StationCalibration
+      }
+      copy_station_config: {
+        Args: { p_from: string; p_to: string }
+        Returns: { devices: number; tags: number }
+      }
       get_trend_data: {
-        Args: { p_tag_id: string; p_from_ts: string; p_to_ts: string; p_interval_minutes?: number }
+        Args: { p_station_id: string; p_tag_id: string; p_from_ts: string; p_to_ts: string; p_interval_minutes?: number }
         Returns: {
           bucket: string; avg_value: number | null; min_value: number | null
           max_value: number | null; sample_count: number
@@ -668,18 +723,6 @@ export interface Database {
           status: AlarmStatus; active_at: string; acknowledged_at: string | null; acknowledged_by: string | null
           ack_comment: string | null; cleared_at: string | null; cleared_by: string | null
           duration_seconds: number | null; created_at: string
-        }
-      }
-      send_command: {
-        Args: {
-          p_station_id: string; p_device_id?: string | null; p_tag_id?: string | null
-          p_command_type: CommandType; p_value?: string | null
-        }
-        Returns: {
-          id: string; station_id: string | null; device_id: string | null; tag_id: string | null
-          command_type: CommandType; value: string | null; status: CommandStatus; requested_by: string | null
-          requested_at: string; executed_at: string | null; response: string | null
-          interlock_status: string | null; reject_reason: string | null
         }
       }
     }
@@ -719,7 +762,6 @@ export const DB_TABLES = {
   measurements: 'measurements',
   alarms: 'alarms',
   events: 'events',
-  commands: 'commands',
   profiles: 'profiles',
   monthlyReports: 'monthly_reports',
   breakdownReports: 'breakdown_reports',
@@ -729,4 +771,3 @@ export const DB_TABLES = {
   dailyEnergySummary: 'daily_energy_summary',
 } as const
 
-export const STATION_ID: string = import.meta.env.VITE_STATION_ID as string

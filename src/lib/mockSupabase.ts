@@ -16,10 +16,11 @@ interface MockStore {
   measurements: Row[]
   alarms: Row[]
   events: Row[]
-  commands: Row[]
   profiles: Row[]
   monthly_reports: Row[]
   breakdown_reports: Row[]
+  station_calibrations?: Row[]
+  calibration_references?: Row[]
 }
 
 function station(id: string, name: string, location: string, latitude: number, longitude: number, status: string = 'active'): Row {
@@ -106,7 +107,6 @@ function createSeed(): MockStore {
       old_value: null, new_value: null, ip_address: '127.0.0.1', user_agent: 'Mock Browser', metadata: {},
       created_at: new Date(Date.now() - index * 10 * 3600000).toISOString(),
     })),
-    commands: [],
     profiles: [{ id: MOCK_USER_ID, full_name: 'Demo Operator', role: 'superadmin', station_access: stationIds, phone: '+62 812-0000-0000', avatar_url: null, is_active: true, last_login: now(), created_at: now(), updated_at: now() }],
     monthly_reports: Array.from({ length: 12 }, (_, index) => {
       const date = new Date()
@@ -195,7 +195,7 @@ class MockQuery {
     const rows = rowsFor(this.table)
     if (this.operation === 'insert') {
       const values = Array.isArray(this.payload) ? this.payload : [this.payload ?? {}]
-      const inserted = values.map((value) => ({ id: value.id ?? crypto.randomUUID(), ...value, created_at: value.created_at ?? now(), updated_at: value.updated_at ?? now(), ...(this.table === 'commands' ? { status: 'pending', requested_at: now() } : {}) }))
+      const inserted = values.map((value) => ({ id: value.id ?? crypto.randomUUID(), ...value, created_at: value.created_at ?? now(), updated_at: value.updated_at ?? now() }))
       rows.push(...inserted)
       saveStore()
       return Promise.resolve(this.result(inserted))
@@ -265,8 +265,30 @@ function viewRows(table: string): Row[] {
   return (store[table as keyof MockStore] ?? []) as Row[]
 }
 
+/** Tiruan view station_overview (migrasi 003) untuk mode mock. */
+function stationOverviewRows(): Row[] {
+  return store.stations.map((station) => {
+    const rows = store.measurements.filter((m) => m.station_id === station.id)
+    const latest = (tag: string) => rows.filter((m) => m.tag_id === tag).sort((x, y) => String(y.source_timestamp).localeCompare(String(x.source_timestamp)))[0]
+    const alarms = store.alarms.filter((a) => a.station_id === station.id && (a.status === 'active' || a.status === 'acknowledged'))
+    const calibration = (store.station_calibrations ?? []).filter((c) => c.station_id === station.id).sort((x, y) => Number(y.version) - Number(x.version))[0]
+    const level = latest('HYDRO.WATER_LEVEL'); const velocity = latest('HYDRO.VELOCITY'); const flow = latest('HYDRO.FLOW_RATE')
+    return {
+      id: station.id, name: station.name, location: station.location, status: station.status,
+      calibration_interval_days: station.calibration_interval_days ?? 90,
+      last_data_at: rows.reduce<string | null>((max, m) => (!max || String(m.source_timestamp) > max ? String(m.source_timestamp) : max), null),
+      level_m: level?.value ?? null, level_quality: level?.quality ?? null,
+      velocity_ms: velocity?.value ?? null, velocity_quality: velocity?.quality ?? null,
+      flow_m3s: flow?.value ?? null, flow_quality: flow?.quality ?? null,
+      active_alarms: alarms.length, critical_alarms: alarms.filter((a) => a.priority === 'critical').length,
+      calibration_version: calibration?.version ?? null, calibration_at: calibration?.effective_from ?? null, calibration_method: calibration?.method ?? null,
+    }
+  })
+}
+
 function rowsFor(table: string) {
   if (table === 'latest_measurements' || table === 'device_health_view' || table === 'active_alarms_view' || table === 'daily_energy_summary') return viewRows(table)
+  if (table === 'station_overview') return stationOverviewRows()
   return (store[table as keyof MockStore] ?? []) as Row[]
 }
 
@@ -334,22 +356,22 @@ function rpc(name: string, args: Record<string, unknown>) {
   if (name === 'get_alarm_statistics') {
     const alarms = store.alarms.filter((row) => row.station_id === args.p_station_id)
     const countBy = (key: string) => Object.fromEntries([...new Set(alarms.map((row) => String(row[key])))].map((value) => [value, alarms.filter((row) => row[key] === value).length]))
-    return { data: { by_priority: countBy('priority'), by_type: countBy('alarm_type'), by_day: [], avg_resolve_seconds_by_priority: { medium: 3600 }, total_alarms: alarms.length }, error: null }
+    return { data: { by_priority: countBy('priority'), by_type: countBy('alarm_type'), by_day: Object.entries(alarms.reduce<Record<string, number>>((acc, row) => { const day = String(row.active_at).slice(0, 10); acc[day] = (acc[day] ?? 0) + 1; return acc }, {})).map(([day, cnt]) => ({ day, cnt })).sort((x, y) => x.day.localeCompare(y.day)), avg_resolve_seconds_by_priority: { medium: 3600 }, total_alarms: alarms.length }, error: null }
+  }
+  if (name === 'apply_calibration') {
+    const list = (store.station_calibrations ??= [])
+    const refs = (args.p_references as Row[] | undefined) ?? []
+    const version = Math.max(0, ...list.filter((row) => row.station_id === args.p_station_id).map((row) => Number(row.version))) + 1
+    const calibration = { id: crypto.randomUUID(), station_id: args.p_station_id, version, ...(args.p_params as Row), method: refs.length ? 'field_reference' : 'manual', notes: args.p_notes ?? null, effective_from: now(), created_by: MOCK_USER_ID, created_by_email: 'operator@demo.local', created_at: now() }
+    list.push(calibration)
+    ;(store.calibration_references ??= []).push(...refs.map((ref) => ({ id: crypto.randomUUID(), calibration_id: calibration.id, station_id: args.p_station_id, ...ref, created_at: now() })))
+    saveStore(); return { data: calibration, error: null }
   }
   if (name === 'acknowledge_alarm') {
     const alarm = store.alarms.find((row) => row.id === args.p_alarm_id && row.status === 'active')
     if (!alarm) return { data: null, error: error('Alarm tidak ditemukan atau sudah di-acknowledge') }
     Object.assign(alarm, { status: 'acknowledged', acknowledged_at: now(), acknowledged_by: MOCK_USER_ID, ack_comment: args.p_comment ?? null })
     saveStore(); return { data: alarm, error: null }
-  }
-  if (name === 'send_command') {
-    const command = {
-      id: crypto.randomUUID(), station_id: args.p_station_id, device_id: args.p_device_id ?? null,
-      tag_id: args.p_tag_id ?? null, command_type: args.p_command_type, value: args.p_value ?? null,
-      status: 'pending', requested_by: MOCK_USER_ID, requested_at: now(), executed_at: null,
-      response: null, interlock_status: null, reject_reason: null,
-    }
-    store.commands.push(command); saveStore(); return { data: command, error: null }
   }
   return { data: null, error: error(`RPC mock belum tersedia: ${name}`) }
 }

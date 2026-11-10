@@ -23,6 +23,7 @@ import {
   type Database,
   type CauseCategory,
 } from './supabase'
+import { useStationId } from './station'
 
 // ============================================================================
 // KONFIGURASI DARI ENV
@@ -31,7 +32,21 @@ import {
 const ALERT_POLLING_MS = Number(import.meta.env.VITE_ALERT_POLLING_MS ?? 3000)
 const ALARM_ENGINE_MIN_INTERVAL_MS = Number(import.meta.env.VITE_ALARM_ENGINE_INTERVAL_MS ?? 15000)
 const REALTIME_ENABLED = (import.meta.env.VITE_REALTIME_ENABLED ?? 'true') === 'true'
-const STATION_ID = import.meta.env.VITE_STATION_ID as string
+
+/**
+ * supabase-js memakai ulang channel dengan nama yang sama. Hook seperti
+ * useAlarms dipanggil di beberapa komponen sekaligus (sidebar + halaman), dan
+ * StrictMode memasang effect dua kali, sehingga nama tetap membuat .on()
+ * dipanggil pada channel yang sudah subscribe dan ditolak. Nama unik per
+ * pemasangan effect mencegah bentrok itu.
+ */
+let channelCounter = 0
+function uniqueChannel(base: string): string {
+  // Bukan crypto.randomUUID: API itu tidak tersedia saat dev server dibuka
+  // lewat IP LAN (http non-localhost bukan secure context).
+  channelCounter += 1
+  return `${base}-${channelCounter}-${Math.random().toString(36).slice(2, 8)}`
+}
 
 // ============================================================================
 // TYPES
@@ -61,21 +76,32 @@ interface MonitoringContextValue {
 const MonitoringContext = createContext<MonitoringContextValue | undefined>(undefined)
 
 export function MonitoringProvider({ children }: { children: ReactNode }) {
+  const STATION_ID = useStationId()
   const [measurements, setMeasurements] = useState<LiveMeasurementsMap>({})
   const [isConnected, setIsConnected] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const applyMeasurement = useCallback((tagId: string, value: number | null, quality: string, timestamp: string, unit?: string | null) => {
-    setMeasurements((prev) => ({
-      ...prev,
-      [tagId]: { value, quality, timestamp, unit },
-    }))
-    setLastUpdate(new Date())
+    setMeasurements((prev) => {
+      // Data kiriman ulang dari buffer gateway bisa lebih tua dari nilai yang
+      // sudah tampil; jangan menimpa nilai yang lebih baru.
+      const current = prev[tagId]
+      if (current && current.timestamp > timestamp) return prev
+      return { ...prev, [tagId]: { value, quality, timestamp, unit } }
+    })
+    // Pakai waktu pengukuran, bukan waktu diterima browser, agar data lama yang
+    // dikirim ulang tidak membuat stasiun tampak "live".
+    const measuredAt = new Date(timestamp)
+    setLastUpdate((prev) => (!prev || measuredAt > prev ? measuredAt : prev))
   }, [])
 
   useEffect(() => {
+    if (!STATION_ID) return
     let mounted = true
+    // Ganti stasiun: kosongkan nilai stasiun sebelumnya agar tidak sempat tampil.
+    setMeasurements({})
+    setLastUpdate(null)
     void supabase
       .from('latest_measurements')
       .select('tag_id,station_id,value,quality,source_timestamp,unit')
@@ -106,7 +132,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
     }
 
     const channel = supabase
-      .channel(`measurements-realtime-${STATION_ID}`)
+      .channel(uniqueChannel(`measurements-realtime-${STATION_ID}`))
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'measurements', filter: `station_id=eq.${STATION_ID}` },
@@ -124,7 +150,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
       mounted = false
       supabase.removeChannel(channel)
     }
-  }, [applyMeasurement])
+  }, [applyMeasurement, STATION_ID])
 
   const value = useMemo<MonitoringContextValue>(
     () => ({ measurements, isConnected, lastUpdate, error }),
@@ -170,7 +196,11 @@ export interface UseAlarmsResult {
   refetch: () => Promise<unknown>
 }
 
-export function useAlarms(stationId: string): UseAlarmsResult {
+/**
+ * @param notify tampilkan toast untuk alarm baru. Hanya layout aplikasi yang
+ * mengaktifkannya; halaman lain memakai data yang sama tanpa toast ganda.
+ */
+export function useAlarms(stationId: string, { notify = false }: { notify?: boolean } = {}): UseAlarmsResult {
   const seenAlarmIds = useRef<Set<string>>(new Set())
   const isFirstLoad = useRef(true)
   const queryClient = useQueryClient()
@@ -203,7 +233,7 @@ export function useAlarms(stationId: string): UseAlarmsResult {
     if (!REALTIME_ENABLED || !stationId) return
 
     const channel = supabase
-      .channel(`alarms-realtime-${stationId}`)
+      .channel(uniqueChannel(`alarms-realtime-${stationId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'alarms', filter: `station_id=eq.${stationId}` },
@@ -220,7 +250,7 @@ export function useAlarms(stationId: string): UseAlarmsResult {
 
   // Toast untuk alarm baru (deteksi via diff id yang belum pernah terlihat)
   useEffect(() => {
-    if (!query.data) return
+    if (!notify || !query.data) return
 
     if (isFirstLoad.current) {
       // Jangan toast alarm yang sudah ada sebelum komponen mount.
@@ -239,7 +269,7 @@ export function useAlarms(stationId: string): UseAlarmsResult {
         toast.warning(`ALARM HIGH: ${alarm.message}`, { duration: 10000 })
       }
     }
-  }, [query.data])
+  }, [notify, query.data])
 
   const alarms = query.data ?? []
   return {
@@ -278,7 +308,7 @@ export function useDeviceStatus(stationId: string) {
     if (!REALTIME_ENABLED) return
 
     const channel = supabase
-      .channel(`devices-realtime-${stationId}`)
+      .channel(uniqueChannel(`devices-realtime-${stationId}`))
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'devices', filter: `station_id=eq.${stationId}` },
@@ -313,10 +343,12 @@ export function useDeviceStatus(stationId: string) {
 // ============================================================================
 
 export function useTrendData(tagId: string, fromTs: string, toTs: string, intervalMinutes = 15) {
+  const stationId = useStationId()
   return useQuery({
-    queryKey: ['trend', tagId, fromTs, toTs, intervalMinutes],
+    queryKey: ['trend', stationId, tagId, fromTs, toTs, intervalMinutes],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_trend_data', {
+        p_station_id: stationId,
         p_tag_id: tagId,
         p_from_ts: fromTs,
         p_to_ts: toTs,
@@ -325,7 +357,7 @@ export function useTrendData(tagId: string, fromTs: string, toTs: string, interv
       if (error) throw error
       return data as TrendDataPoint[]
     },
-    enabled: !!tagId && !!fromTs && !!toTs,
+    enabled: !!stationId && !!tagId && !!fromTs && !!toTs,
     staleTime: 30000,
   })
 }
@@ -564,44 +596,6 @@ export function useAcknowledgeAlarm(stationId: string) {
     },
     onError: (error: Error) => {
       toast.error(`Gagal acknowledge alarm: ${error.message}`)
-    },
-  })
-}
-
-// ============================================================================
-// useSendCommand - mutation kirim command ke device/tag (ditulis ke tabel
-// commands, dieksekusi oleh gateway/edge service terpisah)
-// ============================================================================
-
-export interface SendCommandParams {
-  stationId: string
-  deviceId?: string | null
-  tagId?: string | null
-  commandType: 'write_tag' | 'restart_device' | 'enable_device' | 'disable_device' | 'ack_all_alarms'
-  value?: string | null
-}
-
-export function useSendCommand() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (params: SendCommandParams) => {
-      const { data, error } = await supabase.rpc('send_command', {
-        p_station_id: params.stationId,
-        p_device_id: params.deviceId ?? null,
-        p_tag_id: params.tagId ?? null,
-        p_command_type: params.commandType,
-        p_value: params.value ?? null,
-      })
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      toast.success('Perintah berhasil dikirim')
-      void queryClient.invalidateQueries({ queryKey: ['commands'] })
-    },
-    onError: (error: Error) => {
-      toast.error(`Gagal mengirim perintah: ${error.message}`)
     },
   })
 }

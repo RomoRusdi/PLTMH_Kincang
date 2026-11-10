@@ -2,7 +2,6 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/auth'
-import { MonitoringProvider } from '@/lib/monitoring'
 import { ThemeProvider, useTheme } from '@/lib/theme'
 
 const queryClient = new QueryClient({
@@ -23,10 +22,8 @@ function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <MonitoringProvider>
-            <Outlet />
-            <ThemeToaster />
-          </MonitoringProvider>
+          <Outlet />
+          <ThemeToaster />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

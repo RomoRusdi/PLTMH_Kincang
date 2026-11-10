@@ -1,6 +1,18 @@
 import { cn, formatValue } from '@/lib/utils'
 import type { ReactNode } from 'react'
 
+const QUALITY_LABEL: Record<string, string> = {
+  good: 'Good',
+  stale: 'Data lama',
+  bad: 'Bad',
+  comm_failure: 'Komunikasi gagal',
+  uncertain: 'Uncertain',
+}
+
+export function qualityLabel(quality: string): string {
+  return QUALITY_LABEL[quality] ?? quality
+}
+
 interface KpiCardProps {
   label: string
   value: number | null | undefined
@@ -49,7 +61,7 @@ export function KpiCard({
         {icon && <span className="text-text-secondary flex-shrink-0">{icon}</span>}
       </div>
 
-      <div className={cn('text-2xl font-bold tabular-nums leading-none', colorClass)}>
+      <div className={cn('text-2xl font-bold tabular-nums leading-none', colorClass, quality && quality !== 'good' && 'opacity-50')}>
         {formatValue(value, null, precision)}
         {unit && (
           <span className="text-sm font-normal text-text-secondary ml-1">{unit}</span>
@@ -60,7 +72,7 @@ export function KpiCard({
         {quality && (
           <span className="flex items-center gap-1">
             <span className={cn('w-1.5 h-1.5 rounded-full flex-shrink-0', qualityDot[quality] ?? 'bg-status-unknown')} />
-            <span className="text-[10px] text-text-secondary capitalize">{quality}</span>
+            <span className="text-[10px] text-text-secondary">{qualityLabel(quality)}</span>
           </span>
         )}
         {trend === 'up' && <span className="text-[10px] text-status-warning">▲</span>}

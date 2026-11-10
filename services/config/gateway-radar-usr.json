@@ -1,0 +1,28 @@
+{
+  "_note": "Radar RS-RAD-N01-3 dibaca LANGSUNG lewat converter USR-TCP232-304 (RS-485 ke Ethernet), tanpa PLC. Register map sama dengan gateway-radar-usb.json (slave 0x80 = 128, FC04 input register mulai alamat 1, 9600 8N1 diatur di converter). Sesuaikan plc.host (IP converter), plc.port (Local Port converter), dan protocol (lihat services/README.md).",
+  "station_id": "5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10",
+  "gateway_id": "ea2215f6-239f-4173-b998-8faa1334f67f",
+  "poll_interval_ms": 5000,
+  "plc": {
+    "unit_id": 128,
+    "timeout_ms": 1500,
+    "host": "192.168.0.7",
+    "port": 23,
+    "protocol": "rtu-over-tcp",
+    "function_code": 4,
+    "inter_read_delay_ms": 300
+  },
+  "word_order": "big",
+  "read_blocks": [
+    { "start": 1, "count": 16 }
+  ],
+  "heartbeat_address": null,
+  "heartbeat_stale_polls": 2,
+  "radar_comm_address": null,
+  "tags": [
+    { "tag": "HYDRO.VELOCITY",    "address": 1, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 1 (mm/s)" },
+    { "tag": "HYDRO.WATER_LEVEL", "address": 2, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 2 (mm)" },
+    { "tag": "HYDRO.AIR_GAP",     "address": 3, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 3 (mm?)" },
+    { "tag": "HYDRO.FLOW_RATE",   "address": 4, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 4 (m3/s x1000)" }
+  ]
+}

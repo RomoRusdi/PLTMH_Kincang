@@ -1,0 +1,33 @@
+{
+  "_note": "Radar RS-RAD-N01-3 dibaca LANGSUNG lewat adaptor USB ke RS-485 (COM port). Setelan mengikuti script Python tim yang sudah terbukti membaca radar: slave 0x80 (128), 9600 8N1, FC04 input register mulai alamat 1 sebanyak 16. Urutan register: 1 kecepatan, 2 level, 3 jarak ke air, 4 debit (semua /1000). Skala jarak (register 3) diasumsikan mm, verifikasi dengan meteran. Sesuaikan plc.serial.path dengan COM di laptop ini.",
+  "station_id": "5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10",
+  "gateway_id": "ea2215f6-239f-4173-b998-8faa1334f67f",
+  "poll_interval_ms": 60000,
+  "plc": {
+    "unit_id": 128,
+    "timeout_ms": 1500,
+    "protocol": "rtu-serial",
+    "serial": {
+      "path": "COM8",
+      "baud_rate": 9600,
+      "parity": "none",
+      "data_bits": 8,
+      "stop_bits": 1
+    },
+    "function_code": 4,
+    "inter_read_delay_ms": 300
+  },
+  "word_order": "big",
+  "read_blocks": [
+    { "start": 1, "count": 16 }
+  ],
+  "heartbeat_address": null,
+  "heartbeat_stale_polls": 2,
+  "radar_comm_address": null,
+  "tags": [
+    { "tag": "HYDRO.VELOCITY",    "address": 1, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 1 (mm/s)" },
+    { "tag": "HYDRO.WATER_LEVEL", "address": 2, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 2 (mm)" },
+    { "tag": "HYDRO.AIR_GAP",     "address": 3, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 3 (mm?)" },
+    { "tag": "HYDRO.FLOW_RATE",   "address": 4, "type": "uint16", "scale": 0.001, "source": "radar", "radar_register": "IR 4 (m3/s x1000)" }
+  ]
+}

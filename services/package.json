@@ -1,0 +1,29 @@
+{
+  "name": "river-flow-guardian-services",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Gateway Modbus->MQTT, broker MQTT pengembangan, service ingest MQTT->Supabase, dan simulator PLC",
+  "scripts": {
+    "broker": "tsx src/broker.ts",
+    "simulator": "tsx src/plc-simulator.ts",
+    "gateway": "tsx src/gateway.ts",
+    "probe": "tsx src/probe.ts",
+    "ingest": "tsx src/ingest.ts",
+    "typecheck": "tsc --noEmit",
+    "demo": "tsx src/demo-stations.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "aedes": "^1.2.0",
+    "dotenv": "^18.0.9",
+    "modbus-serial": "^8.0.25",
+    "mqtt": "^5.16.1",
+    "serialport": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

@@ -29,7 +29,6 @@ export const FEATURE_PERMISSIONS = {
   viewHistory: 'viewer',
   viewAlerts: 'viewer',
   acknowledgeAlarm: 'technician',
-  sendCommand: 'operator',
   editDevice: 'technician',
   editTagThreshold: 'admin',
   userManagement: 'admin',
