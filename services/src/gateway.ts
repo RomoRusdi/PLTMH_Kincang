@@ -4,6 +4,7 @@ import Modbus from 'modbus-serial'
 import mqtt from 'mqtt'
 import {
   decodeRegisters,
+  describeTarget,
   gatewayStatusTopic,
   loadGatewayConfig,
   log,
@@ -182,7 +183,7 @@ async function loop() {
   setTimeout(loop, Math.max(0, config.poll_interval_ms - (Date.now() - startedAt)))
 }
 
-log('gateway', `Polling PLC tiap ${config.poll_interval_ms} ms, publish ke topic ${topic}`)
+log('gateway', `Config ${process.env.GATEWAY_CONFIG ?? 'config/gateway.json'}: baca ${describeTarget(config)} tiap ${config.poll_interval_ms} ms, publish ke topic ${topic}`)
 void loop()
 
 function shutdown() {

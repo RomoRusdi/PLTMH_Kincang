@@ -135,7 +135,10 @@ mengirim langsung ke Supabase lewat internet (ZeroTier belum diperlukan).
    otomatis menjadi Windows service di 127.0.0.1:1883).
 2. `git clone` repo, lalu `cd services && npm install`.
 3. Buat `services/.env` dari `.env.example` (SUPABASE_URL dan
-   SUPABASE_SERVICE_ROLE_KEY). Key ini hanya ada di komputer ini.
+   SUPABASE_SERVICE_ROLE_KEY). Key ini hanya ada di komputer ini. Isi juga
+   `GATEWAY_CONFIG` sesuai jalur baca radar: `config/gateway-radar-usb.json`
+   (adaptor USB) atau `config/gateway-radar-usr.json` (converter); skrip
+   `jalankan-gateway.cmd` mengikuti nilai ini.
 4. Atur IP Ethernet ke subnet converter, cek dengan `npm run probe`.
 5. Jalankan `scripts/jalankan-ingest.cmd` dan `scripts/jalankan-gateway.cmd`
    lewat Task Scheduler (trigger *At startup*). Keduanya menjalankan ulang

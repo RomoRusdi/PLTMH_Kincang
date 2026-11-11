@@ -88,7 +88,8 @@ export function readBlocks(config: GatewayConfig): ReadBlock[] {
 
 export function loadGatewayConfig(): GatewayConfig {
   const path = resolve(process.env.GATEWAY_CONFIG ?? 'config/gateway.json')
-  const config = JSON.parse(readFileSync(path, 'utf8')) as GatewayConfig
+  // Buang BOM: Notepad / PowerShell lama sering menambahkannya di awal file.
+  const config = JSON.parse(readFileSync(path, 'utf8').replace(/^﻿/, '')) as GatewayConfig
   if (config.plc.protocol === 'rtu-serial' && !config.plc.serial?.path) {
     throw new Error('protocol rtu-serial membutuhkan plc.serial.path (mis. "COM3") dan plc.serial.baud_rate')
   }
