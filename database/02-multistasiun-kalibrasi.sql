@@ -1,9 +1,9 @@
 -- ============================================================================
 -- MIGRASI 002 – MULTI-STASIUN & KALIBRASI RADAR DI SISTEM
 -- ============================================================================
--- Jalankan di SQL Editor SETELAH supabase-schema.sql. Aman dijalankan ulang.
+-- Jalankan di SQL Editor SETELAH 01-schema.sql. Aman dijalankan ulang.
 --   • Database yang sudah berisi data: cukup jalankan file ini.
---   • Instalasi baru: schema → file ini → supabase-seed.sql → (demo history).
+--   • Instalasi baru: ikuti urutan nomor file (lihat database/README.md).
 --
 -- Isi:
 --   1. Tag unik per stasiun (stasiun + tag), sehingga setiap stasiun punya

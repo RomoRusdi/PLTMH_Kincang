@@ -1,7 +1,7 @@
 -- ============================================================================
--- DIGIHIDROTECH - DATA KONFIGURASI STASIUN
+-- DIGIHYDROTEK - DATA KONFIGURASI STASIUN
 -- ============================================================================
--- Jalankan setelah supabase-schema.sql dan supabase-migration-002-multistasiun-kalibrasi.sql.
+-- Jalankan setelah 01-schema.sql sampai 06-manajemen-pengguna.sql.
 -- Aman dijalankan ulang (upsert).
 --
 -- Isi file ini adalah konfigurasi, bukan data pengukuran: satu stasiun PLTMH,
@@ -92,6 +92,9 @@ values
   ('5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10', '7df3b847-b372-4933-bd4a-19bf6e9d9e73',
    'HYDRO.FLOW_DIRECTION', 'Arah Aliran', '0 = searah aliran, 1 = melawan arus',
    'integer', '-', 'radar (register belum teridentifikasi)', null, null, null, null, 0, 0),
+  ('5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10', '7df3b847-b372-4933-bd4a-19bf6e9d9e73',
+   'HYDRO.POWER_EST', 'Daya Estimasi', 'Dihitung dari debit: 9,81 x debit x tinggi jatuh x efisiensi, dibatasi kapasitas maksimal',
+   'float', 'kW', 'hitungan dari HYDRO.FLOW_RATE', null, null, null, null, 0, 1),
 
   -- Energy meter
   ('5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10', '10422b2e-269a-43ab-b75b-696307ed5878',
@@ -134,3 +137,9 @@ on conflict (station_id, tag_id) do update set
   display_precision = excluded.display_precision;
 -- Threshold sengaja tidak ditimpa saat dijalankan ulang agar perubahan dari
 -- menu Pengaturan tidak hilang.
+
+-- Parameter estimasi daya (migrasi 005), data operator PLTMH Kincang:
+-- tinggi jatuh 4,7 m, kapasitas maksimal 320 kW. Efisiensi 0,8 perkiraan awal.
+update public.stations
+set power_head_m = 4.7, power_efficiency = 0.8, power_max_kw = 320
+where id = '5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10' and power_head_m is null;

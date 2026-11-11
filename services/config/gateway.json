@@ -1,5 +1,5 @@
 {
-  "_note": "Register map USULAN untuk PLC. Alamat (0-based holding register) wajib disesuaikan dengan program PLC dari Hardware Engineer. Radar dibaca PLC dengan FC04 dari slave 128, 9600 8N1 (hasil uji 10-11-2026, berbeda dari manual). tag harus sama dengan tag_id di supabase-seed.sql.",
+  "_note": "Register map USULAN untuk PLC. Alamat (0-based holding register) wajib disesuaikan dengan program PLC dari Hardware Engineer. Radar dibaca PLC dengan FC04 dari slave 128, 9600 8N1 (hasil uji 10-11-2026, berbeda dari manual). tag harus sama dengan tag_id di database/07-seed.sql.",
   "station_id": "5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10",
   "gateway_id": "ea2215f6-239f-4173-b998-8faa1334f67f",
   "poll_interval_ms": 60000,

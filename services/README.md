@@ -36,7 +36,7 @@ Mosquitto di laptop sudah berjalan sebagai Windows service di port 1883, jadi
 
 ## Demo 5 stasiun
 
-Setelah `supabase-demo-5-stasiun.sql` dijalankan di Supabase, jalankan juga:
+Setelah `database/demo-5-stasiun.sql` dijalankan di Supabase, jalankan juga:
 
 ```bash
 npm run demo        # terminal 4: data live untuk stasiun [DEMO] Serayu, Merawu, Tulis

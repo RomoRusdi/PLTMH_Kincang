@@ -1,101 +1,162 @@
 // ============================================================================
-// Konten landing page Digihidrotech.
+// Konten landing page Digihydrotek.
 // Ubah teks di file ini; komponen tampilan tidak perlu disentuh.
 //
-// Aturan: angka dan klaim harus bisa dipertanggungjawabkan. Spesifikasi di
-// bawah diambil dari manual radar RS-RAD-N01-3 dan implementasi sistem.
+// Sumber isi: poster "Modernisasi Sistem Kontrol PLTA" dan "Mitra EPC & Teknis
+// PLTA di Indonesia", materi Program Hilirisasi Riset Prioritas, foto pameran
+// KSTI 2026, dan implementasi sistem monitoring di repository ini.
+// Jangan menambah angka atau klaim yang tidak ada di sumber tersebut.
 // Kontak yang dikosongkan tidak ditampilkan di halaman.
 // ============================================================================
 
 export const company = {
-  name: 'Digihidrotech',
-  tagline: 'Monitoring sungai untuk PLTMH',
-  description:
-    'Digihidrotech menghadirkan sistem monitoring aliran sungai dan kelistrikan untuk Pembangkit Listrik Tenaga Mikrohidro, dari sensor di lapangan hingga dashboard di layar operator.',
+  name: 'Digihydrotek',
+  tagline: 'Smart Technology for Sustainable Hydropower',
+  summary:
+    'Mitra EPC dan teknis untuk pembangkit listrik tenaga air: sistem governor dan hidrolik, eksitasi, PLC/SCADA, retrofit, serta monitoring aliran sungai.',
   // [SESUAIKAN] isi bila sudah tersedia; nilai kosong tidak ditampilkan.
   contact: {
     email: '',
     whatsapp: '', // format internasional tanpa +, mis. 6281234567890
+    phone: '',
     address: '',
   },
 }
 
 export const hero = {
-  eyebrow: 'Sistem Monitoring Sungai untuk PLTMH',
-  // Judul hero ada di routes/index.tsx karena sebagian katanya diberi gradien.
+  kicker: 'Hydropower EPC · Electrical & Automation · Technical Service',
   description:
-    'Radar non-kontak mengukur level air, kecepatan aliran, dan debit. Data dari panel kontrol dikirim ke cloud dan tampil di dashboard dalam hitungan detik, lengkap dengan alarm dan riwayat.',
+    'Digihydrotek merancang, memasang, dan merawat sistem kendali pembangkit listrik tenaga air, dari governor turbin hingga ruang kontrol, dan memantau aliran sungainya secara real-time.',
+  photo: {
+    src: '/images/company/panel-front.jpg',
+    alt: 'Panel monitoring Digihydrotek dengan layar HMI dan sensor radar aliran di bagian bawah',
+    caption: 'Panel monitoring Digihydrotek · HMI dan radar aliran',
+  },
 }
 
-export const specs = [
-  { value: '±1 mm', label: 'Ketelitian ukur level air', detail: 'Radar FMCW 77–79 GHz' },
-  { value: '0,1–20 m/s', label: 'Rentang kecepatan aliran', detail: 'Radar Doppler 24 GHz' },
-  { value: '1 menit', label: 'Interval pembaruan data', detail: 'Dari panel ke dashboard' },
-  { value: 'IP67', label: 'Sensor tahan cuaca', detail: 'Tanpa kontak dengan air' },
-]
+/** Jenis proyek yang dilayani (poster "Mitra EPC & Teknis PLTA di Indonesia"). */
+export const projectTypes = ['PLTA', 'PLTMH', 'Bendungan', 'Irigasi']
 
-export const challenges = [
-  {
-    title: 'Debit menentukan daya',
-    text: 'Produksi listrik PLTMH bergantung langsung pada debit sungai. Tanpa data aliran yang akurat, operator sulit menyesuaikan operasi saat debit berubah.',
-  },
-  {
-    title: 'Gangguan terlambat diketahui',
-    text: 'Banjir, debit rendah, atau sensor yang berhenti mengirim data sering baru disadari saat operator memeriksa lokasi. Alarm otomatis memangkas waktu tanggap.',
-  },
-  {
-    title: 'Keputusan butuh data historis',
-    text: 'Catatan manual tidak cukup untuk melihat pola musiman. Riwayat data yang tersimpan rapi menjadi dasar evaluasi dan prediksi.',
-  },
-]
-
-export const pipeline = [
-  { step: 'Radar Flow-meter', text: 'Mengukur level, kecepatan, dan debit tanpa menyentuh air, melalui RS-485 Modbus RTU.' },
-  { step: 'PLC & HMI', text: 'Membaca sensor, menjalankan logika lokal, dan menampilkan data di panel kontrol.' },
-  { step: 'PC Gateway', text: 'Membaca register PLC lewat Modbus TCP, memberi tanda kualitas data, dan menyusun JSON.' },
-  { step: 'MQTT via ZeroTier', text: 'Mengirim data melalui jaringan virtual terenkripsi, dengan buffer saat koneksi terputus.' },
-  { step: 'Cloud & Dashboard', text: 'Menyimpan data, mengevaluasi alarm, dan menampilkannya secara real-time di web.' },
-]
-
-export const features = [
-  { icon: 'activity', title: 'Monitoring real-time', text: 'Level air, kecepatan, debit, daya, dan suhu panel diperbarui otomatis tanpa memuat ulang halaman.' },
-  { icon: 'bell', title: 'Alarm bertingkat', text: 'Batas High-High, High, Low, dan Low-Low per parameter, dengan deadband dan acknowledge oleh operator.' },
-  { icon: 'shield', title: 'Validasi kualitas data', text: 'Setiap nilai diberi tanda good, stale, atau gangguan komunikasi agar data rusak tidak terbaca normal.' },
-  { icon: 'chart', title: 'Riwayat & laporan', text: 'Grafik tren hingga tiga bulan, statistik alarm, laporan gangguan, dan ekspor CSV.' },
-  { icon: 'users', title: 'Akses berbasis peran', text: 'Lima tingkat pengguna dari viewer hingga superadmin, dibatasi langsung di tingkat database.' },
-  { icon: 'brain', title: 'Prediksi berbasis AI', text: 'Prediksi kondisi aliran dari data historis untuk mendukung perencanaan operasi.', soon: true },
-] as const
-
-export const hardware = [
-  {
-    name: 'Radar Flow-meter',
-    model: 'RS-RAD-N01-3',
-    points: ['Level air, kecepatan, debit, volume, arah aliran', 'Non-kontak, tahan sedimen', 'Catu daya 10–30 VDC, IP67'],
-  },
-  {
-    name: 'PLC & HMI',
-    model: 'Haiwell 24 VDC',
-    points: ['Master Modbus RTU ke radar', 'Logika alarm dan scaling lokal', 'Tampilan operator di panel'],
-  },
-  {
-    name: 'Energy Meter',
-    model: 'Monitoring kelistrikan',
-    points: ['Tegangan, arus, daya aktif', 'Energi, faktor daya, frekuensi', 'Terbaca bersama data sungai'],
-  },
-  {
-    name: 'Panel Kontrol',
-    model: 'Enclosure terproteksi',
-    points: ['Power supply 24 VDC, MCB, proteksi', 'Thermostat dan kipas panel', 'Terminal block dan cable duct'],
-  },
-]
-
-export const deployment = {
-  site: 'PLTMH Kincang, Banjarnegara, Jawa Tengah',
-  status: 'Tahap uji implementasi',
-  steps: [
-    { label: 'Tantangan', text: 'Kondisi aliran sungai yang memengaruhi produksi listrik belum terpantau secara terus-menerus dan terpusat.' },
-    { label: 'Solusi', text: 'Radar flow-meter non-kontak, panel kontrol dengan PLC dan HMI, serta dashboard web dengan alarm otomatis.' },
-    { label: 'Implementasi', text: 'Panel dirakit dan dihubungkan ke radar; data dikirim dari gateway ke cloud melalui MQTT dan ZeroTier.' },
-    { label: 'Hasil', text: 'Data aliran dan kelistrikan pembangkit tampil di satu dashboard; pengujian lapangan sedang berlangsung.' },
+export const profile = {
+  statement: 'Satu mitra untuk sistem pembangkit tenaga air, dari mesin hingga ruang kontrol.',
+  paragraphs: [
+    'Digihydrotek menangani rekayasa, pengadaan, pemasangan, dan dukungan teknis (EPC) untuk pembangkit listrik tenaga air di Indonesia, baik PLTA maupun PLTMH.',
+    'Pekerjaan kami mencakup pembangkit baru dan modernisasi pembangkit lama, termasuk sistem kontrol dari merek lain, agar aset bekerja lebih efisien dan berumur lebih panjang.',
+  ],
+  facts: [
+    { term: 'Bidang', detail: 'Hydropower EPC, electrical & automation, technical service' },
+    { term: 'Cakupan proyek', detail: 'PLTA, PLTMH, bendungan, irigasi' },
+    { term: 'Sistem yang ditangani', detail: 'Termasuk sistem PLTA dari merek lain' },
+    { term: 'Riset & pengembangan', detail: 'Program Hilirisasi Riset Prioritas, skema Dorongan Teknologi' },
   ],
 }
+
+/**
+ * Layanan utama. `marker` dipakai sebagai kunci pada skema pembangkit:
+ * huruf yang sama menandai bagian pembangkit yang ditangani layanan itu.
+ */
+export const services = [
+  {
+    marker: 'A',
+    where: 'Turbin',
+    title: 'Sistem governor & hidrolik',
+    text: 'Kontrol presisi bukaan turbin untuk menjaga putaran dan stabilitas pembangkit.',
+    points: ['Presisi', 'Stabil', 'Andal'],
+  },
+  {
+    marker: 'B',
+    where: 'Generator',
+    title: 'Sistem eksitasi',
+    text: 'Keandalan tegangan generator untuk kinerja pembangkit yang optimal.',
+    points: ['Pengaturan tegangan', 'Kinerja generator'],
+  },
+  {
+    marker: 'C',
+    where: 'Ruang kontrol',
+    title: 'PLC/SCADA & otomasi',
+    text: 'Monitoring real-time dan kendali jarak jauh seluruh peralatan pembangkit dari satu sistem.',
+    points: ['Monitoring real-time', 'Kendali jarak jauh'],
+  },
+  {
+    marker: 'D',
+    where: 'Saluran & sungai',
+    title: 'Monitoring aliran sungai',
+    text: 'Radar non-kontak mengukur level air, kecepatan, dan debit yang menjadi sumber energi pembangkit.',
+    points: ['Level air', 'Kecepatan', 'Debit'],
+  },
+] as const
+
+/** Layanan pendukung (poster "Modernisasi Sistem Kontrol PLTA"). */
+export const supportServices = [
+  'Retrofit & modernisasi sistem kontrol',
+  'Suku cadang original & berkualitas',
+  'Instalasi & commissioning',
+  'Pelatihan & dukungan teknis',
+  'Layanan purna jual',
+]
+
+export const product = {
+  name: 'Sistem Monitoring Sungai untuk PLTMH',
+  description:
+    'Produk riset Digihydrotek yang menghubungkan radar aliran, panel kontrol, dan dashboard web. Operator melihat kondisi sungai dan pembangkit dari mana saja, lengkap dengan alarm otomatis dan riwayat data.',
+  chain: ['Radar aliran', 'Panel PLC & HMI', 'Komputer gateway', 'Cloud', 'Dashboard web'],
+  specs: [
+    { label: 'Sensor', value: 'Radar RS-RAD-N01-3, non-kontak' },
+    { label: 'Parameter', value: 'Level air, kecepatan permukaan, debit' },
+    { label: 'Pembaruan data', value: 'Setiap 1 menit' },
+    { label: 'Alarm', value: 'High-High, High, Low, Low-Low per stasiun' },
+    { label: 'Kalibrasi', value: 'Papan duga & current meter, laporan PDF' },
+    { label: 'Akses', value: 'Web & ponsel, hak akses berbasis peran' },
+  ],
+  site: 'PLTMH Kincang, Banjarnegara · tahap uji lapangan',
+  interiorPhoto: {
+    src: '/images/company/panel-interior.jpg',
+    alt: 'Isi panel kontrol: MCB, power supply, PLC, dan kabel jaringan',
+  },
+}
+
+export const research = {
+  program: 'Program Hilirisasi Riset Prioritas',
+  scheme: 'Skema Dorongan Teknologi',
+  // Nama sesuai logo pada materi program.
+  parties: ['Kemdiktisaintek', 'Ditjen Risbang', 'Soegijapranata Catholic University', 'Roastek Power and Automation'],
+}
+
+export type GalleryItem = { src: string; alt: string; title: string; text: string; width: number; height: number }
+
+export const exhibition: GalleryItem = {
+  src: '/images/company/ksti-2026.jpg',
+  alt: 'Panel Digihydrotek dan radar aliran dipamerkan di stan pameran KSTI 2026',
+  title: 'Pameran KSTI 2026',
+  text: 'Panel monitoring dan radar aliran Digihydrotek ditampilkan di pameran KSTI 2026.',
+  width: 716,
+  height: 532,
+}
+
+export const programPhoto: GalleryItem = {
+  src: '/images/company/research-program.webp',
+  alt: 'Panel monitoring Digihydrotek, tampak dalam dan tampak depan, pada materi Program Hilirisasi Riset Prioritas',
+  title: 'Hilirisasi riset',
+  text: 'Pengembangan panel monitoring melalui Program Hilirisasi Riset Prioritas, skema Dorongan Teknologi.',
+  width: 1280,
+  height: 720,
+}
+
+export const posters: GalleryItem[] = [
+  {
+    src: '/images/company/epc-technical-partner.webp',
+    alt: 'Poster Digihydrotek: Mitra EPC dan teknis PLTA di Indonesia',
+    title: 'Mitra EPC & teknis PLTA',
+    text: 'Hydropower EPC, electrical & automation, dan technical service.',
+    width: 1024,
+    height: 1415,
+  },
+  {
+    src: '/images/company/control-modernization.webp',
+    alt: 'Poster Digihydrotek: Modernisasi sistem kontrol PLTA',
+    title: 'Modernisasi sistem kontrol',
+    text: 'Suku cadang, retrofit, dan dukungan teknis untuk sistem PLTA dan merek lainnya.',
+    width: 1024,
+    height: 1426,
+  },
+]

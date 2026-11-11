@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Menu, Moon, Sun, X } from 'lucide-react'
+import { ArrowUpRight, Menu, Moon, Sun, X } from 'lucide-react'
 import { Logo } from '@/components/brand/Logo'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 
 export const NAV_LINKS = [
-  { href: '#solusi', label: 'Solusi' },
-  { href: '#teknologi', label: 'Teknologi' },
-  { href: '#fitur', label: 'Fitur' },
-  { href: '#perangkat', label: 'Perangkat' },
-  { href: '#penerapan', label: 'Penerapan' },
+  { href: '#profil', label: 'Profil' },
+  { href: '#layanan', label: 'Layanan' },
+  { href: '#produk', label: 'Produk' },
+  { href: '#kegiatan', label: 'Kegiatan' },
+  { href: '#kontak', label: 'Kontak' },
 ] as const
 
 export function LandingNav() {
@@ -27,44 +27,48 @@ export function LandingNav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const platformLabel = isAuthenticated ? 'Buka platform' : 'Platform monitoring'
+
   return (
     <header className={cn(
       'sticky top-0 z-40 border-b transition-colors duration-200',
-      scrolled || open ? 'border-border/70 bg-background/85 backdrop-blur-md' : 'border-transparent bg-transparent',
+      scrolled || open
+        ? 'border-[#D5DEE8] bg-[#F4F7FA]/90 backdrop-blur-md dark:border-[#1C2D44] dark:bg-[#08111F]/90'
+        : 'border-transparent bg-transparent',
     )}>
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <a href="#beranda" aria-label="Digihidrotech, kembali ke atas" className="rounded-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue">
-          <Logo />
+        <a href="#beranda" aria-label="Digihydrotek, kembali ke atas" className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#109CD5]">
+          <Logo className="h-8 sm:h-10" />
         </a>
 
         <nav aria-label="Navigasi halaman" className="hidden flex-1 items-center justify-center gap-1 lg:flex">
           {NAV_LINKS.map((link) => (
-            <a key={link.href} href={link.href} className="rounded-input px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary">
+            <a key={link.href} href={link.href} className="rounded px-3 py-2 text-[15px] font-medium text-[#4A5D73] transition-colors hover:text-[#01448A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#109CD5] dark:text-[#93A7BE] dark:hover:text-white">
               {link.label}
             </a>
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex items-center gap-1.5 lg:ml-0">
           <button
             type="button"
             onClick={toggleTheme}
             aria-label={`Aktifkan mode ${theme === 'dark' ? 'terang' : 'gelap'}`}
-            className="rounded-input p-2 text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+            className="rounded p-2 text-[#4A5D73] transition-colors hover:text-[#01448A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#109CD5] dark:text-[#93A7BE] dark:hover:text-white"
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
           {!isAuthenticated && (
-            <Link to="/login" className="hidden rounded-input px-3 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-2 sm:inline-flex">
+            <Link to="/login" className="hidden rounded px-3 py-2 text-[15px] font-medium text-[#0B1B2E] hover:text-[#01448A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#109CD5] dark:text-[#E3ECF6] dark:hover:text-white sm:inline-flex">
               Masuk
             </Link>
           )}
           <Link
             to="/dashboard"
-            className="hidden items-center gap-1.5 rounded-full bg-accent-blue px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-accent-blue/30 transition-[transform,background-color] hover:-translate-y-px hover:bg-accent-blue/90 dark:text-background sm:inline-flex"
+            className="hidden items-center gap-1.5 rounded-md bg-[#01448A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#013A75] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#109CD5] focus-visible:ring-offset-2 dark:bg-[#109CD5] dark:text-[#04121F] dark:hover:bg-[#2BAAE0] sm:inline-flex"
           >
-            {isAuthenticated ? 'Buka Dashboard' : 'Dashboard'}
-            <ArrowRight className="h-3.5 w-3.5" />
+            {platformLabel}
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </Link>
           <button
             type="button"
@@ -72,7 +76,7 @@ export function LandingNav() {
             aria-expanded={open}
             aria-controls="landing-mobile-menu"
             aria-label={open ? 'Tutup menu' : 'Buka menu'}
-            className="rounded-input p-2 text-text-secondary hover:bg-surface-2 lg:hidden"
+            className="rounded p-2 text-[#4A5D73] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#109CD5] dark:text-[#93A7BE] lg:hidden"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -80,20 +84,20 @@ export function LandingNav() {
       </div>
 
       {open && (
-        <div id="landing-mobile-menu" className="border-t border-border bg-background/95 px-4 pb-5 pt-2 backdrop-blur-md lg:hidden">
+        <div id="landing-mobile-menu" className="border-t border-[#D5DEE8] px-4 pb-5 pt-2 dark:border-[#1C2D44] lg:hidden">
           <nav aria-label="Navigasi halaman (mobile)" className="flex flex-col">
             {NAV_LINKS.map((link) => (
-              <a key={link.href} href={link.href} onClick={() => setOpen(false)} className="rounded-input px-2 py-3 text-sm text-text-primary hover:bg-surface-2">
+              <a key={link.href} href={link.href} onClick={() => setOpen(false)} className="border-b border-[#D5DEE8] py-3 text-base font-medium text-[#0B1B2E] last:border-0 dark:border-[#1C2D44] dark:text-[#E3ECF6]">
                 {link.label}
               </a>
             ))}
           </nav>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {!isAuthenticated && (
-              <Link to="/login" className="rounded-full border border-border px-4 py-2.5 text-center text-sm font-medium text-text-primary">Masuk</Link>
+              <Link to="/login" className="rounded-md border border-[#C3CFDC] px-4 py-2.5 text-center text-sm font-semibold text-[#0B1B2E] dark:border-[#2A3E58] dark:text-[#E3ECF6]">Masuk</Link>
             )}
-            <Link to="/dashboard" className={cn('rounded-full bg-accent-blue px-4 py-2.5 text-center text-sm font-semibold text-white dark:text-background', isAuthenticated && 'col-span-2')}>
-              {isAuthenticated ? 'Buka Dashboard' : 'Dashboard'}
+            <Link to="/dashboard" className={cn('rounded-md bg-[#01448A] px-4 py-2.5 text-center text-sm font-semibold text-white dark:bg-[#109CD5] dark:text-[#04121F]', isAuthenticated && 'col-span-2')}>
+              {platformLabel}
             </Link>
           </div>
         </div>

@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Bell, Activity, Monitor, FileText, ClipboardList,
   LogOut, ChevronRight, Wrench, Settings, MapPin, Menu, X,
   Moon, Sun, PanelLeftClose, PanelLeftOpen,
-  Wifi, WifiOff, Gauge, LayoutGrid,
+  Wifi, WifiOff, Gauge, LayoutGrid, Users,
 } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { useEffect, useState } from 'react'
@@ -66,6 +66,7 @@ const NAV_GROUPS = [
     label: 'Konfigurasi',
     items: [
       { to: '/dashboard/calibration', label: 'Kalibrasi Sensor', icon: Gauge },
+      { to: '/dashboard/users', label: 'Pengguna', icon: Users, superadminOnly: true },
       { to: '/dashboard/settings', label: 'Pengaturan', icon: Settings },
     ],
   },
@@ -162,7 +163,7 @@ function AppLayout() {
             >
               <BrandMark className={cn('h-8 w-8 flex-shrink-0', sidebarCollapsed && 'lg:mx-auto')} />
               <div className={cn('min-w-0 transition-opacity', sidebarCollapsed && 'lg:hidden')}>
-                <p className="text-xs font-semibold text-text-primary leading-tight truncate">Digihidrotech</p>
+                <p className="text-xs font-semibold text-text-primary leading-tight truncate">Digihydrotek</p>
                 <p className="text-[10px] text-text-secondary leading-tight">Monitoring PLTMH</p>
               </div>
             </Link>
@@ -198,7 +199,7 @@ function AppLayout() {
             <div key={group.label}>
               <p className={cn('px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-secondary/70', sidebarCollapsed && 'lg:hidden')}>{group.label}</p>
               <div className="space-y-1">
-                {group.items.map(({ to, label, icon: Icon }) => {
+                {group.items.filter((item) => !('superadminOnly' in item) || profile?.role === 'superadmin').map(({ to, label, icon: Icon }) => {
                   const active = to === '/dashboard' ? pathname === '/dashboard' || pathname === '/dashboard/' : pathname.startsWith(to)
                   return (
                     <Link

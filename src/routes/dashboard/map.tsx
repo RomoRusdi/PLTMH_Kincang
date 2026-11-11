@@ -112,7 +112,7 @@ function MapPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader title="Peta Stasiun" eyebrow="Semua stasiun" subtitle="Lokasi dan status seluruh stasiun pengukuran"
-        actions={canAccess('systemSettings') && <button type="button" onClick={() => setCreating(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-accent-blue text-white rounded-input"><Plus className="w-3.5 h-3.5" />Tambah stasiun</button>} />
+        actions={canAccess('createStation') && <button type="button" onClick={() => setCreating(true)} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-accent-blue text-white rounded-input"><Plus className="w-3.5 h-3.5" />Tambah stasiun</button>} />
       <div className="dashboard-shell min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
         <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <MapStat icon={<MapPinned className="h-4 w-4" />} label="Total stasiun" value={mapStations.length} detail={`${locatedCount} punya koordinat`} />

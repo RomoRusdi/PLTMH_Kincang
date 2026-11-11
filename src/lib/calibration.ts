@@ -10,7 +10,7 @@ import {
 
 // ============================================================================
 // Kalibrasi radar di sistem. Rumus di sini HARUS sama dengan
-// apply_station_calibration di supabase-migration-002 agar pratinjau wizard
+// apply_station_calibration di database/02-multistasiun-kalibrasi.sql agar pratinjau wizard
 // sama dengan nilai yang nanti tersimpan saat data masuk.
 // ============================================================================
 

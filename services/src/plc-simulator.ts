@@ -54,7 +54,7 @@ function tick() {
   const minutesInScenario = (now - scenarioStartedAt) / 60_000
   const noise = (amplitude: number) => (Math.random() - 0.5) * 2 * amplitude
 
-  // Pola harian + variasi pendek, sama dengan supabase-demo-history.sql.
+  // Pola harian + variasi pendek, sama dengan database/demo-history.sql.
   let level = 0.8 + 0.12 * Math.sin((2 * Math.PI * h) / 24) + 0.03 * Math.sin((2 * Math.PI * h) / 3.7) + noise(0.005)
   let velocity = 1.2 + 0.15 * Math.sin((2 * Math.PI * h) / 24 + 0.6) + 0.04 * Math.sin((2 * Math.PI * h) / 2.3) + noise(0.02)
   if (scenario === 'banjir') {

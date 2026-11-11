@@ -22,6 +22,10 @@ function DashboardPage() {
   // Nilai yang lama tidak diperbarui ditandai stale agar tidak terbaca sebagai data terkini.
   const now = useNow()
   const m = useMemo(() => markOldMeasurements(latest, now), [latest, now])
+  // Selama energy meter belum mengirim data, daya diperkirakan dari debit
+  // (tag HYDRO.POWER_EST, migrasi 005). Nilai terukur selalu didahulukan.
+  const powerEstimated = m['POWER.ACTIVE_POWER']?.quality !== 'good' && m['HYDRO.POWER_EST'] != null
+  const powerTag = powerEstimated ? 'HYDRO.POWER_EST' : 'POWER.ACTIVE_POWER'
   const { alarms, count: alarmCount, hasCritical, isLoading: alarmsLoading } = useAlarms(STATION_ID)
   const { devices, onlineCount, totalCount, isLoading: devicesLoading } = useDeviceStatus(STATION_ID)
   const { data: stationKpi } = useKpiData(STATION_ID, 24)
@@ -33,7 +37,7 @@ function DashboardPage() {
     }
   }, [])
   const { data: trendData, isLoading: trendLoading, isError: trendError } = useTrendData('HYDRO.WATER_LEVEL', trendFrom, trendTo, 15)
-  const { data: powerTrendData, isLoading: powerForecastLoading, isError: powerForecastError } = useTrendData('POWER.ACTIVE_POWER', trendFrom, trendTo, 15)
+  const { data: powerTrendData, isLoading: powerForecastLoading, isError: powerForecastError } = useTrendData(powerTag, trendFrom, trendTo, 15)
   const ackMutation = useAcknowledgeAlarm(STATION_ID)
   const [ackingId, setAckingId] = useState<string | null>(null)
 
@@ -101,10 +105,11 @@ function DashboardPage() {
           </div>
         </section>
         {/* KPI row */}
-        <DashKpi m={m} panelTempColor={panelTempColor} />
+        <DashKpi m={m} panelTempColor={panelTempColor} powerTag={powerTag} powerEstimated={powerEstimated} />
         <PowerForecastPanel
           forecast={powerForecast}
-          currentPowerKw={m['POWER.ACTIVE_POWER']?.quality === 'good' ? m['POWER.ACTIVE_POWER'].value : null}
+          currentPowerKw={m[powerTag]?.quality === 'good' ? (m[powerTag]?.value ?? null) : null}
+          estimated={powerEstimated}
           dailyEnergyKwh={stationKpi?.daily_energy ?? null}
           loading={powerForecastLoading}
           hasHistory={powerChartData.some((point) => point.avg != null)}
@@ -113,7 +118,7 @@ function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4 xl:gap-6 items-stretch">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 min-w-0">
             <TrendPanel chartData={chartData} trendLoading={trendLoading} trendError={trendError} />
-            <PowerTrendPanel chartData={powerChartData} forecast={powerForecast} trendLoading={powerForecastLoading} trendError={powerForecastError} />
+            <PowerTrendPanel chartData={powerChartData} forecast={powerForecast} trendLoading={powerForecastLoading} trendError={powerForecastError} estimated={powerEstimated} />
           </div>
           <div className="chart-card flex min-h-[300px] flex-col">
             <div className="flex items-center justify-between mb-3">
@@ -311,7 +316,7 @@ function StatusTile({ label, tag, text, bad }: {
   )
 }
 
-function DashKpi({ m, panelTempColor }: { m: MeasMap; panelTempColor: string }) {
+function DashKpi({ m, panelTempColor, powerTag, powerEstimated }: { m: MeasMap; panelTempColor: string; powerTag: string; powerEstimated: boolean }) {
   return (
     <section>
       <div className="mb-3 flex items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-blue">Live telemetry</p><h2 className="mt-1 text-sm font-semibold text-text-primary">Hidrologi & energi</h2></div><span className="hidden text-[10px] text-text-secondary sm:block">Nilai terakhir diterima dari gateway</span></div>
@@ -319,7 +324,7 @@ function DashKpi({ m, panelTempColor }: { m: MeasMap; panelTempColor: string }) 
         <KpiCard label="Level Air" value={m['HYDRO.WATER_LEVEL']?.value} unit="m" precision={3} quality={m['HYDRO.WATER_LEVEL']?.quality} colorClass="text-accent-blue" />
         <KpiCard label="Kecepatan Aliran" value={m['HYDRO.VELOCITY']?.value} unit="m/s" precision={2} quality={m['HYDRO.VELOCITY']?.quality} colorClass="text-accent-blue" />
         <KpiCard label="Debit" value={m['HYDRO.FLOW_RATE']?.value} unit="m³/s" precision={3} quality={m['HYDRO.FLOW_RATE']?.quality} colorClass="text-accent-blue" />
-        <KpiCard label="Daya Aktif" value={m['POWER.ACTIVE_POWER']?.value} unit="kW" precision={1} quality={m['POWER.ACTIVE_POWER']?.quality} colorClass="text-accent-yellow" />
+        <KpiCard label={powerEstimated ? 'Daya (estimasi dari debit)' : 'Daya Aktif'} value={m[powerTag]?.value} unit="kW" precision={1} quality={m[powerTag]?.quality} colorClass="text-accent-yellow" />
         <KpiCard label="Energi Kumulatif" value={m['POWER.ENERGY_KWH']?.value} unit="kWh" precision={1} quality={m['POWER.ENERGY_KWH']?.quality} colorClass="text-accent-orange" />
         <KpiCard label="Suhu Panel" value={m['PANEL.TEMPERATURE']?.value} unit="°C" precision={1} quality={m['PANEL.TEMPERATURE']?.quality} colorClass={panelTempColor} />
       </div>
@@ -341,8 +346,10 @@ function PowerForecastPanel({
   dailyEnergyKwh,
   loading,
   hasHistory,
+  estimated,
 }: {
   forecast: ReturnType<typeof predictPower>
+  estimated: boolean
   currentPowerKw: number | null
   dailyEnergyKwh: number | null
   loading: boolean
@@ -377,7 +384,7 @@ function PowerForecastPanel({
             <h2 className="text-sm font-semibold text-text-primary">Estimasi Tren Daya & Pendapatan</h2>
             <span className="rounded-full bg-accent-purple/15 px-2 py-0.5 text-[10px] text-accent-purple">Regresi linear · 6 jam</span>
           </div>
-          <p className="mt-1 text-[11px] text-text-secondary">Estimasi sederhana 1 jam ke depan dari tren daya aktif 6 jam terakhir, bukan model AI. Prediksi dari modul AI akan tampil terpisah setelah terintegrasi. Bukan pengganti meter energi atau tagihan resmi.</p>
+          <p className="mt-1 text-[11px] text-text-secondary">Estimasi sederhana 1 jam ke depan dari tren daya {estimated ? 'estimasi (dihitung dari debit sungai)' : 'aktif'} 6 jam terakhir, bukan model AI. Prediksi dari modul AI akan tampil terpisah setelah terintegrasi. Bukan pengganti meter energi atau tagihan resmi.</p>
         </div>
         <label className="flex items-center gap-2 text-[11px] text-text-secondary">
           Tarif jual
@@ -396,7 +403,7 @@ function PowerForecastPanel({
 
       {loading ? <div className="mt-4 h-24 skeleton rounded-card" /> : !hasHistory ? (
         <div className="mt-4 rounded-card border border-accent-orange/30 bg-accent-orange/5 px-3 py-4 text-xs text-accent-orange">
-          Histori daya belum tersedia. Prediksi akan tampil setelah data daya aktif masuk.
+          Histori daya belum tersedia. Prediksi akan tampil setelah data {estimated ? 'debit' : 'daya aktif'} masuk.
         </div>
       ) : (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -406,7 +413,7 @@ function PowerForecastPanel({
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-text-secondary">
-        <span>Daya aktual: {currentWatts == null ? '—' : `${Math.round(currentWatts).toLocaleString('id-ID')} W`}</span>
+        <span>{estimated ? 'Daya estimasi (dari debit)' : 'Daya aktual'}: {currentWatts == null ? '—' : `${Math.round(currentWatts).toLocaleString('id-ID')} W`}</span>
         <span>Tren: {!hasHistory ? '—' : `${forecast.slopeKwPerHour >= 0 ? '+' : ''}${forecast.slopeKwPerHour.toFixed(2)} kW/jam`}</span>
       </div>
     </section>
@@ -467,8 +474,9 @@ function TrendPanel({ chartData, trendLoading, trendError }: {
   )
 }
 
-function PowerTrendPanel({ chartData, forecast, trendLoading, trendError }: {
+function PowerTrendPanel({ chartData, forecast, trendLoading, trendError, estimated }: {
   chartData: { time: string; avg: number | null }[]
+  estimated: boolean
   forecast: ReturnType<typeof predictPower>
   trendLoading: boolean
   trendError: boolean
@@ -482,7 +490,7 @@ function PowerTrendPanel({ chartData, forecast, trendLoading, trendError }: {
     <div className="bg-surface border border-border rounded-card p-4 min-w-0">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Daya Aktif & Estimasi</h2>
+          <h2 className="text-sm font-semibold text-text-primary">{estimated ? 'Daya Estimasi dari Debit' : 'Daya Aktif & Estimasi'}</h2>
           <p className="mt-0.5 text-[10px] text-text-secondary">6 jam terakhir · titik +1 jam adalah estimasi</p>
         </div>
         {trendLoading && <RefreshCw className="w-3.5 h-3.5 text-text-secondary animate-spin" />}

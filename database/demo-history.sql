@@ -1,5 +1,5 @@
 -- ============================================================================
--- RIVER FLOW GUARDIAN - RIWAYAT DUMMY (OPSIONAL, HANYA UNTUK DEMO/PENGEMBANGAN)
+-- DIGIHYDROTEK - RIWAYAT DUMMY (OPSIONAL, HANYA UNTUK DEMO/PENGEMBANGAN)
 -- ============================================================================
 -- Mengisi 3 hari terakhir (interval 5 menit) agar grafik trend langsung
 -- terisi sebelum data lapangan tersedia. Semua baris ditandai raw_value = 'demo'.

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'rfg-shell-v1'
-const APP_SHELL = ['/', '/manifest.webmanifest', '/icons/icon.svg']
+const CACHE_NAME = 'rfg-shell-v2'
+const APP_SHELL = ['/', '/manifest.webmanifest', '/favicon.png', '/icons/icon-192.png']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

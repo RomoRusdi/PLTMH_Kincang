@@ -26,8 +26,9 @@ interface MockStore {
 function station(id: string, name: string, location: string, latitude: number, longitude: number, status: string = 'active'): Row {
   return {
     id, name, location, latitude, longitude, status,
-    description: 'Stasiun pemantauan River Flow Guardian', river_name: 'Sungai Citarum',
+    description: 'Stasiun pemantauan Digihydrotek', river_name: 'Sungai Citarum',
     installation_date: '2024-03-15', elevation_m: 48, created_at: now(), updated_at: now(),
+    power_head_m: id === STATION_ID ? 4.7 : null, power_efficiency: 0.8, power_max_kw: id === STATION_ID ? 320 : null, power_design_flow_m3s: null,
   }
 }
 
@@ -107,7 +108,7 @@ function createSeed(): MockStore {
       old_value: null, new_value: null, ip_address: '127.0.0.1', user_agent: 'Mock Browser', metadata: {},
       created_at: new Date(Date.now() - index * 10 * 3600000).toISOString(),
     })),
-    profiles: [{ id: MOCK_USER_ID, full_name: 'Demo Operator', role: 'superadmin', station_access: stationIds, phone: '+62 812-0000-0000', avatar_url: null, is_active: true, last_login: now(), created_at: now(), updated_at: now() }],
+    profiles: [{ id: MOCK_USER_ID, full_name: 'Demo Operator', email: 'operator@demo.local', role: 'superadmin', station_access: stationIds, phone: '+62 812-0000-0000', avatar_url: null, is_active: true, last_login: now(), created_at: now(), updated_at: now() }],
     monthly_reports: Array.from({ length: 12 }, (_, index) => {
       const date = new Date()
       date.setDate(1)
@@ -399,6 +400,20 @@ export function createMockSupabase(): SupabaseClient<Database> {
       return channel
     },
     removeChannel() { return 'ok' },
+    // Tiruan Edge Function admin-users (lihat supabase/functions/admin-users).
+    functions: {
+      async invoke(name: string, options?: { body?: Record<string, unknown> }) {
+        const body = options?.body ?? {}
+        if (name !== 'admin-users') return { data: null, error: new Error('Fungsi tidak dikenal') }
+        if (body.action === 'create') {
+          if (store.profiles.some((p) => p.email === body.email)) return { data: null, error: new Error('Email ini sudah terdaftar.') }
+          const id = crypto.randomUUID?.() ?? String(Date.now())
+          store.profiles.push({ id, full_name: body.full_name || null, email: body.email, role: body.role, station_access: body.station_access ?? [], phone: null, avatar_url: null, is_active: true, last_login: null, created_at: now(), updated_at: now() })
+          return { data: { id }, error: null }
+        }
+        return { data: { ok: true }, error: null }
+      },
+    },
   }
   return client as unknown as SupabaseClient<Database>
 }

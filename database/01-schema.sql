@@ -1,14 +1,18 @@
 -- ============================================================================
--- RIVER FLOW GUARDIAN - SISTEM MONITORING SUNGAI UNTUK PLTMH
+-- DIGIHYDROTEK - SISTEM MONITORING SUNGAI UNTUK PLTMH
 -- Supabase PostgreSQL Schema
 -- ============================================================================
 -- Urutan setup pada project Supabase baru:
 --   1. Jalankan file ini di SQL Editor (sekali jalan, dari atas ke bawah).
---   2. Jalankan supabase-migration-002-multistasiun-kalibrasi.sql, lalu
---      supabase-migration-003-ringkasan-stasiun.sql, lalu
---      supabase-migration-004-interval-retensi.sql.
---   3. Jalankan supabase-seed.sql (stasiun, perangkat, dan tag).
---   4. Opsional: supabase-demo-history.sql (riwayat dummy untuk grafik).
+--   2. Jalankan 02-multistasiun-kalibrasi.sql, lalu
+--      03-ringkasan-stasiun.sql, lalu
+--      04-interval-retensi.sql, lalu
+--      05-estimasi-daya.sql, lalu
+--      06-manajemen-pengguna.sql.
+--      Deploy juga Edge Function supabase/functions/admin-users (pembuatan akun
+--      dari halaman Pengguna).
+--   3. Jalankan 07-seed.sql (stasiun, perangkat, dan tag).
+--   4. Opsional: demo-history.sql (riwayat dummy untuk grafik).
 --   5. Buat user pertama di Authentication > Users, lalu jadikan superadmin
 --      (lihat catatan di akhir file ini).
 --
@@ -1541,7 +1545,7 @@ end $$;
 -- SELESAI
 -- ----------------------------------------------------------------------------
 -- Catatan setelah menjalankan schema:
--- 1. Jalankan supabase-seed.sql untuk membuat stasiun, perangkat, dan tag.
+-- 1. Jalankan 07-seed.sql untuk membuat stasiun, perangkat, dan tag.
 -- 2. Matikan pendaftaran publik: Authentication > Sign In / Providers >
 --    nonaktifkan "Allow new users to sign up". Akun dibuat oleh admin.
 -- 3. Buat user pertama di Authentication > Users > Add user, lalu jadikan

@@ -1,7 +1,7 @@
 -- ============================================================================
 -- DATA DEMO – 5 STASIUN (HANYA UNTUK DEMO / PENGEMBANGAN)
 -- ============================================================================
--- Jalankan SETELAH: schema → migrasi 002 → 003 → 004 → seed.
+-- Jalankan SETELAH 01 sampai 07 (lihat database/README.md).
 -- Aman dijalankan ulang (data demo lama dihapus lalu dibuat ulang).
 --
 -- Menambahkan 4 stasiun [DEMO] di samping "PLTMH Kincang", lengkap
@@ -83,13 +83,13 @@ with inserted as (
     velocity_coefficient, method, notes, effective_from, created_by_email, created_at
   ) values
     ('de000000-0000-4000-8000-000000000002', 1, 3.20, 0.015, 'rectangle', 2.50, 0, 0.86, 'field_reference', 'Data demo: papan duga + current meter',
-     now() - interval '20 days', 'demo@digihidrotech', now() - interval '20 days'),
+     now() - interval '20 days', 'demo@digihydrotek', now() - interval '20 days'),
     ('de000000-0000-4000-8000-000000000003', 1, 3.00, 0.000, 'rectangle', 3.00, 0, 0.85, 'manual', 'Data demo: parameter awal pemasangan',
-     now() - interval '150 days', 'demo@digihidrotech', now() - interval '150 days'),
+     now() - interval '150 days', 'demo@digihydrotek', now() - interval '150 days'),
     ('de000000-0000-4000-8000-000000000003', 2, 3.00, 0.025, 'rectangle', 3.00, 0, 0.83, 'field_reference', 'Data demo: kalibrasi ulang setelah musim hujan',
-     now() - interval '76 days', 'demo@digihidrotech', now() - interval '76 days'),
+     now() - interval '76 days', 'demo@digihydrotek', now() - interval '76 days'),
     ('de000000-0000-4000-8000-000000000004', 1, 2.80, -0.010, 'trapezoid', 1.80, 1.0, 0.84, 'field_reference', 'Data demo: saluran trapesium',
-     now() - interval '140 days', 'demo@digihidrotech', now() - interval '140 days')
+     now() - interval '140 days', 'demo@digihydrotek', now() - interval '140 days')
   returning id, station_id, version, effective_from
 )
 insert into public.calibration_references (calibration_id, station_id, measured_at, ref_level_m, ref_velocity_ms, ref_flow_m3s, radar_air_gap_m, radar_velocity_ms, notes)

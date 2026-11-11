@@ -262,7 +262,7 @@ export function buildCalibrationReportHtml({ station, calibration, previous, eva
     <div><div class="sign">Diperiksa oleh (pengelola PLTMH)</div></div>
   </div>
 
-  <footer>Dokumen ini dibuat otomatis oleh dashboard Digihidrotech dari data kalibrasi tersimpan (ID ${esc(calibration.id)}).</footer>
+  <footer>Dokumen ini dibuat otomatis oleh dashboard Digihydrotek dari data kalibrasi tersimpan (ID ${esc(calibration.id)}).</footer>
 </body></html>`
 }
 

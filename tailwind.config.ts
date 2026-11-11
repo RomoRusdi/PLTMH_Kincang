@@ -15,6 +15,10 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        // Landing page Digihydrotek: huruf bergaya papan nama industri + angka teknis.
+        brand: ['Barlow', 'Inter', 'system-ui', 'sans-serif'],
+        'brand-display': ['"Barlow Semi Condensed"', 'Barlow', 'system-ui', 'sans-serif'],
+        plex: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
         background: 'hsl(var(--background) / <alpha-value>)',

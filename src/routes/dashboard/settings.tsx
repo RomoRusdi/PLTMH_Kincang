@@ -4,21 +4,23 @@ import { useAuth } from '@/lib/auth'
 import type { UserRole } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { cn } from '@/lib/utils'
-import { User, Lock, Bell, Sliders, ChevronRight, ShieldCheck } from 'lucide-react'
+import { User, Lock, Bell, Sliders, ChevronRight, ShieldCheck, Zap } from 'lucide-react'
 import { ProfileTab }       from '@/components/settings/ProfileTab'
 import { PasswordTab }      from '@/components/settings/PasswordTab'
 import { NotificationsTab } from '@/components/settings/NotificationsTab'
 import { ThresholdsTab }    from '@/components/settings/ThresholdsTab'
+import { PowerEstimateTab } from '@/components/settings/PowerEstimateTab'
 
 export const Route = createFileRoute('/dashboard/settings')({ component: SettingsPage })
 
-type Tab = 'profile' | 'password' | 'notifications' | 'thresholds'
+type Tab = 'profile' | 'password' | 'notifications' | 'thresholds' | 'power'
 
 const TABS: { id: Tab; label: string; description: string; icon: typeof User; minRole?: UserRole }[] = [
   { id: 'profile',       label: 'Profil',        description: 'Identitas dan kontak akun', icon: User    },
   { id: 'password',      label: 'Kata Sandi',    description: 'Perbarui kredensial login', icon: Lock    },
   { id: 'notifications', label: 'Notifikasi',    description: 'Preferensi alarm browser', icon: Bell    },
   { id: 'thresholds',    label: 'Threshold Tag', description: 'Batas alarm sensor', icon: Sliders, minRole: 'admin' },
+  { id: 'power',         label: 'Estimasi Daya', description: 'Daya dihitung dari debit selama energy meter belum terpasang', icon: Zap, minRole: 'admin' },
 ]
 
 function SettingsPage() {
@@ -76,6 +78,7 @@ function SettingsPage() {
             {activeTab?.id === 'password'      && <PasswordTab />}
             {activeTab?.id === 'notifications' && <NotificationsTab />}
             {activeTab?.id === 'thresholds'    && <ThresholdsTab />}
+            {activeTab?.id === 'power'         && <PowerEstimateTab />}
           </div>
         </div>
       </div>

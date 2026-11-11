@@ -90,7 +90,7 @@ export function NotificationsTab() {
           ))}
         </div>
         <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          <button type="button" onClick={() => { if (permission === 'granted') new Notification('River Flow Guardian', { body: 'Notifikasi uji berhasil.' }); else toast.info('Aktifkan izin browser terlebih dahulu') }} className="scada-button-secondary"><Volume2 className="w-3 h-3" /> Uji notifikasi</button>
+          <button type="button" onClick={() => { if (permission === 'granted') new Notification('Digihydrotek', { body: 'Notifikasi uji berhasil.' }); else toast.info('Aktifkan izin browser terlebih dahulu') }} className="scada-button-secondary"><Volume2 className="w-3 h-3" /> Uji notifikasi</button>
           <button type="button" onClick={reset} className="scada-button-secondary"><RotateCcw className="w-3 h-3" /> Reset default</button>
         </div>
       </Section>

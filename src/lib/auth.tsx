@@ -31,7 +31,8 @@ export const FEATURE_PERMISSIONS = {
   acknowledgeAlarm: 'technician',
   editDevice: 'technician',
   editTagThreshold: 'admin',
-  userManagement: 'admin',
+  userManagement: 'superadmin',
+  createStation: 'superadmin',
   systemSettings: 'admin',
   deleteData: 'superadmin',
 } as const satisfies Record<string, UserRole>

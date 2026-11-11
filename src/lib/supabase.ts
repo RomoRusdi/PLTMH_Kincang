@@ -2,7 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createMockSupabase } from './mockSupabase'
 
 // ============================================================================
-// DATABASE TYPES - harus sinkron dengan supabase-schema.sql
+// DATABASE TYPES - harus sinkron dengan database/01-schema.sql
 // ============================================================================
 
 export type StationStatus = 'active' | 'inactive' | 'maintenance'
@@ -109,6 +109,11 @@ export interface Station {
   elevation_m: number | null
   /** Batas umur kalibrasi sebelum stasiun ditandai perlu kalibrasi ulang. */
   calibration_interval_days: number
+  /** Parameter estimasi daya dari debit (migrasi 005); tinggi jatuh kosong = nonaktif. */
+  power_head_m: number | null
+  power_efficiency: number
+  power_max_kw: number | null
+  power_design_flow_m3s: number | null
   created_at: string
   updated_at: string
 }
@@ -239,6 +244,8 @@ export interface Profile {
   last_login: string | null
   created_at: string
   updated_at: string
+  /** Disalin dari auth.users (migrasi 006); null pada database lama. */
+  email?: string | null
 }
 
 export interface MonthlyReport {
@@ -408,6 +415,7 @@ export interface Database {
           latitude: number | null; longitude: number | null; description: string | null
           status: StationStatus; river_name: string | null; installation_date: string | null
           elevation_m: number | null; calibration_interval_days: number; created_at: string; updated_at: string
+          power_head_m: number | null; power_efficiency: number; power_max_kw: number | null; power_design_flow_m3s: number | null
         }
         Insert: {
           id?: string; name: string; location: string
@@ -420,6 +428,7 @@ export interface Database {
           latitude?: number | null; longitude?: number | null; description?: string | null
           status?: StationStatus; river_name?: string | null; installation_date?: string | null
           elevation_m?: number | null; calibration_interval_days?: number; created_at?: string; updated_at?: string
+          power_head_m?: number | null; power_efficiency?: number; power_max_kw?: number | null; power_design_flow_m3s?: number | null
         }
         Relationships: []
       }
@@ -538,7 +547,7 @@ export interface Database {
         Row: {
           id: string; full_name: string | null; role: UserRole; station_access: string[]
           phone: string | null; avatar_url: string | null; is_active: boolean
-          last_login: string | null; created_at: string; updated_at: string
+          last_login: string | null; created_at: string; updated_at: string; email: string | null
         }
         Insert: {
           id: string; full_name?: string | null; role?: UserRole; station_access?: string[]
@@ -548,7 +557,7 @@ export interface Database {
         Update: {
           id?: string; full_name?: string | null; role?: UserRole; station_access?: string[]
           phone?: string | null; avatar_url?: string | null; is_active?: boolean
-          last_login?: string | null; created_at?: string; updated_at?: string
+          last_login?: string | null; created_at?: string; updated_at?: string; email?: string | null
         }
         Relationships: []
       }

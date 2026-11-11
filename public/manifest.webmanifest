@@ -1,7 +1,7 @@
 {
-  "name": "Digihidrotech Monitoring",
-  "short_name": "Digihidrotech",
-  "description": "Monitoring aliran sungai dan kelistrikan PLTMH secara real-time.",
+  "name": "Digihydrotek Monitoring",
+  "short_name": "Digihydrotek",
+  "description": "Platform monitoring aliran sungai dan pembangkit dari Digihydrotek.",
   "lang": "id-ID",
   "dir": "ltr",
   "start_url": "/dashboard",
@@ -16,10 +16,16 @@
   ],
   "icons": [
     {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

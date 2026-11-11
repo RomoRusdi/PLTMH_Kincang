@@ -41,16 +41,16 @@ function LoginPage() {
       <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_20%_20%,hsl(var(--accent-blue)/.16),transparent_28%),radial-gradient(circle_at_80%_80%,hsl(var(--accent-purple)/.12),transparent_30%)]" />
       <div className="relative grid w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-surface/90 shadow-2xl backdrop-blur md:grid-cols-[1.1fr_.9fr]">
         <div className="hidden flex-col justify-between bg-accent-blue/[0.07] p-10 md:flex">
-          <div><Link to="/" aria-label="Kembali ke beranda Digihidrotech" className="mb-8 inline-flex rounded-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"><Logo /></Link><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-blue">Monitoring PLTMH</p><h2 className="mt-3 max-w-sm font-display text-3xl font-bold tracking-tight text-text-primary">Visibilitas operasi sungai dalam satu layar.</h2><p className="mt-4 max-w-sm text-sm leading-6 text-text-secondary">Pantau telemetry, alarm, perangkat, dan performa pembangkit secara real-time.</p></div>
+          <div><Link to="/" aria-label="Kembali ke beranda Digihydrotek" className="mb-8 inline-flex rounded-input focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"><Logo /></Link><p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-blue">Monitoring PLTMH</p><h2 className="mt-3 max-w-sm font-display text-3xl font-bold tracking-tight text-text-primary">Visibilitas operasi sungai dalam satu layar.</h2><p className="mt-4 max-w-sm text-sm leading-6 text-text-secondary">Pantau telemetry, alarm, perangkat, dan performa pembangkit secara real-time.</p></div>
           <div className="grid grid-cols-2 gap-3 text-xs"><div className="rounded-card border border-border bg-surface/70 p-3"><Activity className="mb-2 h-4 w-4 text-status-good" /><p className="font-medium text-text-primary">Telemetry live</p><p className="mt-1 text-text-secondary">Data terpantau</p></div><div className="rounded-card border border-border bg-surface/70 p-3"><ShieldCheck className="mb-2 h-4 w-4 text-accent-blue" /><p className="font-medium text-text-primary">Akses terkontrol</p><p className="mt-1 text-text-secondary">Role-based access</p></div></div>
         </div>
         <div className="w-full max-w-sm justify-self-center p-6 sm:p-8">
         {/* Logo / Title */}
           <div className="mb-8 text-center md:text-left">
-          <Link to="/" aria-label="Kembali ke beranda Digihidrotech" className="mb-5 inline-flex md:hidden">
+          <Link to="/" aria-label="Kembali ke beranda Digihydrotek" className="mb-5 inline-flex md:hidden">
             <BrandMark className="h-12 w-12" />
           </Link>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-text-primary">Masuk ke Digihidrotech</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-text-primary">Masuk ke Digihydrotek</h1>
           <p className="mt-1 text-sm text-text-secondary">Dashboard monitoring sungai PLTMH</p>
         </div>
 

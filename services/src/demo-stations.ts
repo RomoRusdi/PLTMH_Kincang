@@ -2,7 +2,7 @@ import mqtt from 'mqtt'
 import { log, mqttOptions, telemetryTopic } from './config.js'
 
 // ============================================================================
-// Pengirim data live untuk stasiun [DEMO] (supabase-demo-5-stasiun.sql).
+// Pengirim data live untuk stasiun [DEMO] (database/demo-5-stasiun.sql).
 // Meniru beberapa PC gateway sekaligus: payload dikirim ke MQTT dengan format
 // yang sama seperti gateway.ts, sehingga ingest, kalibrasi, alarm, dan
 // realtime dashboard ikut teruji. Tidak memakai Modbus.

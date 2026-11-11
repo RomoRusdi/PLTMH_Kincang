@@ -40,8 +40,8 @@ export function PwaInstallPrompt() {
     <div className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-50 flex items-center gap-3 rounded-card border border-accent-blue/30 bg-surface p-3 shadow-xl sm:bottom-4 sm:left-auto sm:max-w-sm">
       <span className="rounded-input bg-accent-blue/15 p-2 text-accent-blue"><Download className="h-4 w-4" /></span>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-text-primary">Pasang RFG di perangkat</p>
-        <p className="mt-0.5 text-[10px] text-text-secondary">Akses SCADA lebih cepat dari layar utama.</p>
+        <p className="text-xs font-semibold text-text-primary">Pasang Digihydrotek di perangkat</p>
+        <p className="mt-0.5 text-[10px] text-text-secondary">Buka dashboard monitoring langsung dari layar utama.</p>
       </div>
       <button type="button" onClick={() => void install()} className="scada-button-secondary px-2.5 py-1 text-[10px] text-accent-blue">Pasang</button>
       <button type="button" onClick={dismiss} aria-label="Tutup ajakan instalasi" className="rounded-input p-1 text-text-secondary hover:bg-surface-2"><X className="h-4 w-4" /></button>
