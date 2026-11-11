@@ -13,6 +13,8 @@ export interface CalibrationReportInput {
   calibration: StationCalibration
   previous: StationCalibration | null
   evaluation: CalibrationEvaluation | null
+  /** Nama perusahaan yang tampil di kop laporan (merek pengguna). */
+  brandName?: string
 }
 
 // Pedoman penilaian akurasi (bukan standar resmi): level dibandingkan dengan
@@ -137,7 +139,7 @@ export function openCalibrationReport(input: CalibrationReportInput): boolean {
   return true
 }
 
-export function buildCalibrationReportHtml({ station, calibration, previous, evaluation }: CalibrationReportInput): string {
+export function buildCalibrationReportHtml({ station, calibration, previous, evaluation, brandName = 'Digihydrotek' }: CalibrationReportInput): string {
   const points = evaluation?.points ?? []
   const hasLevel = points.some((p) => p.refLevel != null)
   const hasFlow = points.some((p) => p.refFlow != null)
@@ -211,7 +213,7 @@ export function buildCalibrationReportHtml({ station, calibration, previous, eva
   <p class="no-print note">Gunakan "Simpan sebagai PDF" pada dialog cetak untuk menyimpan laporan.</p>
   <header>
     <div>
-      <div class="brand">Digi<span>hidro</span>tech</div>
+      <div class="brand">${esc(brandName)}</div>
       <h1>Laporan Kalibrasi Radar Flow-meter</h1>
       <div class="note">Sistem Monitoring Sungai untuk PLTMH</div>
     </div>
@@ -262,7 +264,7 @@ export function buildCalibrationReportHtml({ station, calibration, previous, eva
     <div><div class="sign">Diperiksa oleh (pengelola PLTMH)</div></div>
   </div>
 
-  <footer>Dokumen ini dibuat otomatis oleh dashboard Digihydrotek dari data kalibrasi tersimpan (ID ${esc(calibration.id)}).</footer>
+  <footer>Dokumen ini dibuat otomatis oleh dashboard ${esc(brandName)} dari data kalibrasi tersimpan (ID ${esc(calibration.id)}).</footer>
 </body></html>`
 }
 

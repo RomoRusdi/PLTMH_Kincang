@@ -18,6 +18,7 @@ import {
 import type { Station, StationCalibration } from '@/lib/supabase'
 import { useThemeColor } from '@/lib/useThemeColor'
 import { cn } from '@/lib/utils'
+import { useBrand } from '@/lib/brand'
 
 interface Props {
   calibration: StationCalibration
@@ -33,7 +34,8 @@ export function CalibrationDetail({ calibration, previous, station, onClose }: P
     () => (references.length ? evaluateCalibration(calibration, previous, references) : null),
     [calibration, previous, references],
   )
-  const reportInput = { station, calibration, previous, evaluation }
+  const brand = useBrand()
+  const reportInput = { station, calibration, previous, evaluation, brandName: brand.name }
 
   function printReport() {
     if (!openCalibrationReport(reportInput)) toast.error('Pop-up diblokir browser. Izinkan pop-up untuk membuka laporan.')

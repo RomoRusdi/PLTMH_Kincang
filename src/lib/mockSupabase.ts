@@ -108,7 +108,7 @@ function createSeed(): MockStore {
       old_value: null, new_value: null, ip_address: '127.0.0.1', user_agent: 'Mock Browser', metadata: {},
       created_at: new Date(Date.now() - index * 10 * 3600000).toISOString(),
     })),
-    profiles: [{ id: MOCK_USER_ID, full_name: 'Demo Operator', email: 'operator@demo.local', role: 'superadmin', station_access: stationIds, phone: '+62 812-0000-0000', avatar_url: null, is_active: true, last_login: now(), created_at: now(), updated_at: now() }],
+    profiles: [{ id: MOCK_USER_ID, full_name: 'Demo Operator', email: 'operator@demo.local', role: import.meta.env.VITE_MOCK_ROLE ?? 'superadmin', brand_name: import.meta.env.VITE_MOCK_BRAND ?? null, brand_logo_url: null, station_access: stationIds, phone: '+62 812-0000-0000', avatar_url: null, is_active: true, last_login: now(), created_at: now(), updated_at: now() }],
     monthly_reports: Array.from({ length: 12 }, (_, index) => {
       const date = new Date()
       date.setDate(1)

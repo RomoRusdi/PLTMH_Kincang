@@ -13,12 +13,13 @@ aman dijalankan ulang.
 | `05-estimasi-daya.sql` | Daya dihitung dari debit (tag `HYDRO.POWER_EST`) |
 | `06-manajemen-pengguna.sql` | Admin per stasiun, halaman Pengguna |
 | `07-seed.sql` | Stasiun PLTMH Kincang, perangkat, dan tag |
+| `08-merek-akun.sql` | Merek khusus per akun: kincang@admin.com melihat PT. Naluri Energi Utama (diatur dari SQL Editor) |
 | `demo-history.sql` | Opsional: riwayat dummy 3 hari untuk grafik |
 | `demo-5-stasiun.sql` | Opsional: 4 stasiun [DEMO] tambahan; hapus sebelum dipakai operasional |
 
 ## Project Supabase baru
 
-1. Jalankan `01` sampai `07` berurutan.
+1. Jalankan `01` sampai `08` berurutan.
 2. Deploy Edge Function `supabase/functions/admin-users` (Edge Functions →
    Deploy a new function → Via Editor → nama `admin-users`). Dipakai halaman
    **Pengguna** untuk membuat akun.
@@ -44,7 +45,8 @@ select 'tabel kalibrasi (02)' as cek, (to_regclass('public.station_calibrations'
 union all select 'ringkasan stasiun (03)', (to_regclass('public.station_overview') is not null)::text
 union all select 'retensi (04)', (to_regclass('public.measurements_hourly') is not null)::text
 union all select 'estimasi daya (05)', (exists (select 1 from information_schema.columns where table_name = 'stations' and column_name = 'power_head_m'))::text
-union all select 'manajemen pengguna (06)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'email'))::text;
+union all select 'manajemen pengguna (06)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'email'))::text
+union all select 'merek akun (08)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'brand_name'))::text;
 ```
 
 ## Catatan

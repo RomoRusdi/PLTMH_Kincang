@@ -27,6 +27,7 @@ interface UserRow {
   station_access: string[]
   is_active: boolean
   last_login: string | null
+  brand_name: string | null
 }
 
 const ROLE_OPTIONS: { value: UserRole; label: string; hint: string }[] = [
@@ -74,7 +75,7 @@ function UsersPage() {
     enabled: profile?.role === 'superadmin',
     queryFn: async () => {
       const { data, error } = await supabase.from('profiles')
-        .select('id,full_name,email,role,station_access,is_active,last_login')
+        .select('id,full_name,email,role,station_access,is_active,last_login,brand_name')
         .order('created_at', { ascending: true })
       if (error) throw error
       return (data ?? []) as UserRow[]
@@ -150,7 +151,10 @@ function UsersPage() {
                         <p className="font-medium text-text-primary">{user.full_name || '—'}{user.id === profile.id && <span className="ml-2 text-[10px] text-accent-blue">akun Anda</span>}</p>
                         <p className="text-xs text-text-secondary">{user.email ?? '(email belum tersinkron)'}</p>
                       </td>
-                      <td className="px-4 py-3 text-text-primary">{roleLabel(user.role)}</td>
+                      <td className="px-4 py-3 text-text-primary">
+                        {roleLabel(user.role)}
+                        {user.brand_name && <p className="text-[11px] text-text-secondary" title="Diatur dari Supabase (08-merek-akun.sql)">tampil sebagai {user.brand_name}</p>}
+                      </td>
                       <td className="px-4 py-3 text-xs text-text-secondary">
                         {user.role === 'superadmin' ? 'Semua stasiun'
                           : user.station_access.length === 0 ? <span className="text-accent-yellow">Belum ada</span>
@@ -371,3 +375,4 @@ function PasswordDialog({ user, onClose }: { user: UserRow; onClose: () => void 
     </div>
   )
 }
+

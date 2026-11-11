@@ -246,6 +246,9 @@ export interface Profile {
   updated_at: string
   /** Disalin dari auth.users (migrasi 006); null pada database lama. */
   email?: string | null
+  /** Merek khusus akun (08-merek-akun.sql), hanya diatur dari SQL Editor. */
+  brand_name?: string | null
+  brand_logo_url?: string | null
 }
 
 export interface MonthlyReport {
@@ -548,6 +551,7 @@ export interface Database {
           id: string; full_name: string | null; role: UserRole; station_access: string[]
           phone: string | null; avatar_url: string | null; is_active: boolean
           last_login: string | null; created_at: string; updated_at: string; email: string | null
+          brand_name: string | null; brand_logo_url: string | null
         }
         Insert: {
           id: string; full_name?: string | null; role?: UserRole; station_access?: string[]

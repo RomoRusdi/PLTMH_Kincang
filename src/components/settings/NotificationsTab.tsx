@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check, RotateCcw, Volume2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Section, Toggle } from './atoms'
+import { useBrand } from '@/lib/brand'
 
 const STORAGE_KEY = 'notif_prefs'
 
@@ -41,6 +42,7 @@ const ROWS: { key: keyof Prefs; label: string; desc: string }[] = [
 ]
 
 export function NotificationsTab() {
+  const brand = useBrand()
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
 
@@ -90,7 +92,7 @@ export function NotificationsTab() {
           ))}
         </div>
         <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          <button type="button" onClick={() => { if (permission === 'granted') new Notification('Digihydrotek', { body: 'Notifikasi uji berhasil.' }); else toast.info('Aktifkan izin browser terlebih dahulu') }} className="scada-button-secondary"><Volume2 className="w-3 h-3" /> Uji notifikasi</button>
+          <button type="button" onClick={() => { if (permission === 'granted') new Notification(brand.name, { body: 'Notifikasi uji berhasil.' }); else toast.info('Aktifkan izin browser terlebih dahulu') }} className="scada-button-secondary"><Volume2 className="w-3 h-3" /> Uji notifikasi</button>
           <button type="button" onClick={reset} className="scada-button-secondary"><RotateCcw className="w-3 h-3" /> Reset default</button>
         </div>
       </Section>

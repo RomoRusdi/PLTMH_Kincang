@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useStationId } from '@/lib/station'
+import { useBrand } from '@/lib/brand'
 import { markOldMeasurements, useNow } from '@/lib/stationStatus'
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Banknote, TrendingUp, Wifi, WifiOff, RefreshCw, Zap } from 'lucide-react'
@@ -17,6 +18,7 @@ export const Route = createFileRoute('/dashboard/')({ component: DashboardPage }
 
 function DashboardPage() {
   const STATION_ID = useStationId()
+  const brand = useBrand()
   const { profile, canAccess } = useAuth()
   const { data: latest, isConnected, lastUpdate, error: measurementError } = useLatestMeasurements(STATION_ID)
   // Nilai yang lama tidak diperbarui ditandai stale agar tidak terbaca sebagai data terkini.
@@ -70,7 +72,7 @@ function DashboardPage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title={`Dashboard — ${import.meta.env.VITE_APP_NAME ?? 'SCADA'}`}
+        title={`Dashboard — ${brand.name}`}
         subtitle={`Selamat datang, ${profile?.full_name ?? profile?.role ?? 'User'}`}
         actions={
           <div className="flex items-center gap-3">

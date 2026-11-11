@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, Link, useRouterState, Navigate } from '@tansta
 import { StationProvider, useStation, useStationId } from '@/lib/station'
 import { useAuth } from '@/lib/auth'
 import { MonitoringProvider, useAlarms, useLatestMeasurements } from '@/lib/monitoring'
-import { BrandMark } from '@/components/brand/Logo'
+import { BrandIcon, useBrand, useBrandDocumentTitle } from '@/lib/brand'
 import { LIVE_THRESHOLD_MS, useNow } from '@/lib/stationStatus'
 import { cn } from '@/lib/utils'
 import {
@@ -109,6 +109,8 @@ function StationSelect({ collapsed }: { collapsed: boolean }) {
 function AppLayout() {
   const STATION_ID = useStationId()
   const { profile, signOut } = useAuth()
+  const brand = useBrand()
+  useBrandDocumentTitle(brand)
   const { theme, toggleTheme } = useTheme()
   const { count: alarmCount, hasCritical } = useAlarms(STATION_ID, { notify: true })
   const { isConnected, lastUpdate } = useLatestMeasurements(STATION_ID)
@@ -161,9 +163,9 @@ function AppLayout() {
               title="Buka Dashboard"
               className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-input p-1 -ml-1 transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue', sidebarCollapsed && 'lg:flex-none lg:p-0 lg:ml-0')}
             >
-              <BrandMark className={cn('h-8 w-8 flex-shrink-0', sidebarCollapsed && 'lg:mx-auto')} />
+              <BrandIcon brand={brand} className={cn('h-8 w-8 flex-shrink-0', sidebarCollapsed && 'lg:mx-auto')} />
               <div className={cn('min-w-0 transition-opacity', sidebarCollapsed && 'lg:hidden')}>
-                <p className="text-xs font-semibold text-text-primary leading-tight truncate">Digihydrotek</p>
+                <p className="text-xs font-semibold text-text-primary leading-tight [overflow-wrap:anywhere]" title={brand.name}>{brand.name}</p>
                 <p className="text-[10px] text-text-secondary leading-tight">Monitoring PLTMH</p>
               </div>
             </Link>
