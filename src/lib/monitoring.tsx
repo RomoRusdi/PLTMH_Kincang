@@ -32,6 +32,11 @@ import { useStationId } from './station'
 const ALERT_POLLING_MS = Number(import.meta.env.VITE_ALERT_POLLING_MS ?? 3000)
 const ALARM_ENGINE_MIN_INTERVAL_MS = Number(import.meta.env.VITE_ALARM_ENGINE_INTERVAL_MS ?? 15000)
 const REALTIME_ENABLED = (import.meta.env.VITE_REALTIME_ENABLED ?? 'true') === 'true'
+/** Pengambilan ulang cadangan bila realtime tertinggal. */
+const BACKSTOP_POLL_MS = 30_000
+/** Rentang data terbaru yang diambil ulang (cukup untuk beberapa interval gateway 60 detik). */
+const RECENT_WINDOW_MS = 10 * 60_000
+const RESUBSCRIBE_DELAY_MS = 5_000
 
 /**
  * supabase-js memakai ulang channel dengan nama yang sama. Hook seperti
@@ -87,8 +92,13 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
       // Data kiriman ulang dari buffer gateway bisa lebih tua dari nilai yang
       // sudah tampil; jangan menimpa nilai yang lebih baru.
       const current = prev[tagId]
-      if (current && current.timestamp > timestamp) return prev
-      return { ...prev, [tagId]: { value, quality, timestamp, unit } }
+      // Bandingkan sebagai waktu: format teks dari realtime dan REST bisa berbeda.
+      const currentAt = current ? Date.parse(current.timestamp) : Number.NEGATIVE_INFINITY
+      const incomingAt = Date.parse(timestamp)
+      if (currentAt > incomingAt) return prev
+      // Nilai sama yang datang dua kali (realtime + pengambilan ulang) tidak memicu render.
+      if (current && currentAt === incomingAt && current.value === value && current.quality === quality) return prev
+      return { ...prev, [tagId]: { value, quality, timestamp, unit: unit ?? current?.unit } }
     })
     // Pakai waktu pengukuran, bukan waktu diterima browser, agar data lama yang
     // dikirim ulang tidak membuat stasiun tampak "live".
@@ -126,31 +136,78 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
         }, null))
       })
 
-    if (!REALTIME_ENABLED) {
-      setIsConnected(false)
-      return () => { mounted = false }
+    return () => { mounted = false }
+  }, [STATION_ID])
+
+  // Realtime + cadangan. Koneksi realtime bisa putus diam-diam (tab lama tidak
+  // aktif, laptop sleep, Wi-Fi berganti). Maka: (1) channel yang error/tutup
+  // dibuat ulang otomatis, (2) data beberapa menit terakhir diambil ulang tiap
+  // 30 detik, saat tab dibuka kembali, dan setelah tersambung ulang, sehingga
+  // tampilan tidak pernah tertinggal lebih dari 30 detik tanpa perlu refresh.
+  const [reconnectKey, setReconnectKey] = useState(0)
+  useEffect(() => {
+    if (!STATION_ID) return
+    let active = true
+    let retryTimer: number | undefined
+
+    const fetchRecent = async () => {
+      const since = new Date(Date.now() - RECENT_WINDOW_MS).toISOString()
+      const { data, error } = await supabase
+        .from('measurements')
+        .select('tag_id,station_id,value,quality,source_timestamp')
+        .eq('station_id', STATION_ID)
+        .gte('source_timestamp', since)
+        .order('source_timestamp', { ascending: true })
+      if (!active || error || !data) return
+      for (const row of data) applyMeasurement(row.tag_id, row.value, row.quality, row.source_timestamp)
     }
 
-    const channel = supabase
-      .channel(uniqueChannel(`measurements-realtime-${STATION_ID}`))
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'measurements', filter: `station_id=eq.${STATION_ID}` },
-        (payload) => {
-          const row = payload.new as { tag_id: string; station_id: string; value: number | null; quality: string; source_timestamp: string; unit?: string | null }
-          if (row.station_id !== STATION_ID) return
-          applyMeasurement(row.tag_id, row.value, row.quality, row.source_timestamp, row.unit)
-        },
-      )
-      .subscribe((status) => {
-        setIsConnected(status === 'SUBSCRIBED')
-      })
+    const pollTimer = window.setInterval(() => { void fetchRecent() }, BACKSTOP_POLL_MS)
+    const onResume = () => {
+      if (document.visibilityState !== 'visible') return
+      void fetchRecent()
+    }
+    document.addEventListener('visibilitychange', onResume)
+    window.addEventListener('online', onResume)
+    window.addEventListener('focus', onResume)
+
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    if (REALTIME_ENABLED) {
+      channel = supabase
+        .channel(uniqueChannel(`measurements-realtime-${STATION_ID}`))
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'measurements', filter: `station_id=eq.${STATION_ID}` },
+          (payload) => {
+            const row = payload.new as { tag_id: string; station_id: string; value: number | null; quality: string; source_timestamp: string; unit?: string | null }
+            if (row.station_id !== STATION_ID) return
+            applyMeasurement(row.tag_id, row.value, row.quality, row.source_timestamp, row.unit)
+          },
+        )
+        .subscribe((status) => {
+          if (!active) return
+          setIsConnected(status === 'SUBSCRIBED')
+          // Tersambung (lagi): ambil data yang terlewat selama terputus.
+          if (status === 'SUBSCRIBED') void fetchRecent()
+          // Channel gagal/tertutup: buat ulang setelah jeda singkat.
+          if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') && retryTimer === undefined) {
+            retryTimer = window.setTimeout(() => { if (active) setReconnectKey((key) => key + 1) }, RESUBSCRIBE_DELAY_MS)
+          }
+        })
+    } else {
+      setIsConnected(false)
+    }
 
     return () => {
-      mounted = false
-      supabase.removeChannel(channel)
+      active = false
+      window.clearInterval(pollTimer)
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer)
+      document.removeEventListener('visibilitychange', onResume)
+      window.removeEventListener('online', onResume)
+      window.removeEventListener('focus', onResume)
+      if (channel) void supabase.removeChannel(channel)
     }
-  }, [applyMeasurement, STATION_ID])
+  }, [applyMeasurement, STATION_ID, reconnectKey])
 
   const value = useMemo<MonitoringContextValue>(
     () => ({ measurements, isConnected, lastUpdate, error }),

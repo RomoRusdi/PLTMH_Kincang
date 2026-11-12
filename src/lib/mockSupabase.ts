@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './supabase'
 
 type Row = Record<string, unknown>
-type Filter = { column: string; operator: 'eq' | 'in'; value: unknown }
+type Filter = { column: string; operator: 'eq' | 'in' | 'gte'; value: unknown }
 
 const STATION_ID = (import.meta.env.VITE_STATION_ID as string | undefined) ?? 'ce9ceebb-921b-4275-83f1-1679cff06d04'
 const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001'
@@ -179,6 +179,7 @@ class MockQuery {
   constructor(private readonly table: string) {}
   select(columns = '*') { this.selected = columns; return this }
   eq(column: string, value: unknown) { this.filters.push({ column, operator: 'eq', value }); return this }
+  gte(column: string, value: unknown) { this.filters.push({ column, operator: 'gte', value }); return this }
   in(column: string, value: unknown[]) { this.filters.push({ column, operator: 'in', value }); return this }
   order(column: string, options?: { ascending?: boolean }) { this.sort = { column, ascending: options?.ascending ?? true }; return this }
   limit(value: number) { this.maxRows = value; return this }
@@ -218,7 +219,7 @@ class MockQuery {
       saveStore()
       return Promise.resolve(this.result(saved))
     }
-    const matched = rows.filter((row) => this.filters.every((filter) => filter.operator === 'eq' ? row[filter.column] === filter.value : (filter.value as unknown[]).includes(row[filter.column])))
+    const matched = rows.filter((row) => this.filters.every((filter) => filter.operator === 'eq' ? row[filter.column] === filter.value : filter.operator === 'gte' ? String(row[filter.column] ?? '') >= String(filter.value) : (filter.value as unknown[]).includes(row[filter.column])))
     if (this.operation === 'update') {
       matched.forEach((row) => Object.assign(row, this.payload ?? {}, { updated_at: now() }))
       saveStore()

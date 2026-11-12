@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useStationId } from '@/lib/station'
 import { useBrand } from '@/lib/brand'
+import { DEVICE_STATE_LABEL, deviceState, type DeviceState } from '@/lib/deviceStatus'
 import { TELEMETRY_TONE, markOldMeasurements, telemetryStatus, useNow } from '@/lib/stationStatus'
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Banknote, TrendingUp, Wifi, WifiOff, RefreshCw, Zap } from 'lucide-react'
@@ -551,13 +552,12 @@ function DevicePanel({ devices, onlineCount, totalCount, loading }: {
           {devices.map((device) => (
             <div key={device.id} className="bg-surface border border-border rounded-card p-3">
               <div className="flex items-center gap-2 mb-1">
-                <span className={cn('w-2 h-2 rounded-full flex-shrink-0',
-                  device.is_online ? 'bg-status-good' : 'bg-status-bad')} />
+                <span className={cn('w-2 h-2 rounded-full flex-shrink-0', DEVICE_DOT[deviceState(device)])} />
                 <span className="text-xs font-medium text-text-primary truncate">{device.name}</span>
               </div>
-              <p className="text-[10px] text-text-secondary capitalize pl-4">
-                {device.status}
-                {device.minutes_since_last_seen != null && !device.is_online && (
+              <p className="text-[10px] text-text-secondary pl-4">
+                {DEVICE_STATE_LABEL[deviceState(device)]}
+                {device.minutes_since_last_seen != null && deviceState(device) === 'offline' && (
                   <span className="ml-1">· {device.minutes_since_last_seen}m lalu</span>
                 )}
               </p>
@@ -567,4 +567,12 @@ function DevicePanel({ devices, onlineCount, totalCount, loading }: {
       )}
     </section>
   )
+}
+
+const DEVICE_DOT: Record<DeviceState, string> = {
+  online: 'bg-status-good',
+  offline: 'bg-status-bad',
+  error: 'bg-accent-red',
+  maintenance: 'bg-accent-yellow',
+  disabled: 'bg-text-secondary/50',
 }

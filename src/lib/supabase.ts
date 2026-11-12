@@ -792,7 +792,10 @@ export const supabase: SupabaseClient<Database> = useMockDatabase
   ? createMockSupabase()
   : createClient<Database>(supabaseUrl ?? '', supabaseAnonKey ?? '', {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-      realtime: { params: { eventsPerSecond: 10 } },
+      // worker: heartbeat realtime berjalan di Web Worker. Tanpa ini, browser
+      // memperlambat timer tab yang tidak aktif sehingga server menutup koneksi
+      // dan data berhenti masuk sampai halaman di-refresh.
+      realtime: { params: { eventsPerSecond: 10 }, worker: true },
     })
 
 /**
