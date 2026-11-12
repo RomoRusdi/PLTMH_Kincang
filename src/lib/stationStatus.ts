@@ -45,6 +45,53 @@ export function markOldMeasurements<T extends { quality: string; timestamp: stri
   return changed ? result : measurements
 }
 
+/**
+ * Status telemetry stasiun dalam tiga tingkat:
+ * - disconnected (Terputus): tidak ada kiriman dari stasiun selama 3 menit
+ *   (komputer PLTMH mati, internet putus, gateway/ingest berhenti), atau web
+ *   sendiri kehilangan koneksi realtime ke server.
+ * - ready: gateway masih mengirim, tetapi tidak ada nilai sensor yang valid
+ *   (port dipakai RadarWave, kabel radar lepas, radar tidak menjawab).
+ * - connected (Terhubung): gateway mengirim dan nilai sensor terbaca normal.
+ */
+export type TelemetryState = 'disconnected' | 'ready' | 'connected'
+
+export const TELEMETRY_LABEL: Record<TelemetryState, string> = {
+  disconnected: 'Terputus',
+  ready: 'Ready',
+  connected: 'Terhubung',
+}
+
+/** Warna per status: merah, kuning, hijau. */
+export const TELEMETRY_TONE: Record<TelemetryState, { text: string; dot: string }> = {
+  disconnected: { text: 'text-status-bad', dot: 'bg-status-bad' },
+  ready: { text: 'text-status-warning', dot: 'bg-status-warning' },
+  connected: { text: 'text-status-good', dot: 'bg-status-good' },
+}
+
+export interface TelemetryStatus {
+  state: TelemetryState
+  label: string
+  /** Penjelasan singkat penyebab status. */
+  detail: string
+}
+
+export function telemetryStatus(
+  realtimeConnected: boolean,
+  measurements: Record<string, { quality: string; timestamp: string }>,
+  now = Date.now(),
+): TelemetryStatus {
+  const status = (state: TelemetryState, detail: string) => ({ state, label: TELEMETRY_LABEL[state], detail })
+  if (!realtimeConnected) return status('disconnected', 'Koneksi web ke server terputus')
+  const fresh = Object.values(measurements).filter((m) => now - new Date(m.timestamp).getTime() <= LIVE_THRESHOLD_MS)
+  if (fresh.length === 0) {
+    const hasData = Object.values(measurements).some((m) => m.timestamp)
+    return status('disconnected', hasData ? 'Stasiun tidak mengirim data' : 'Belum ada data dari stasiun')
+  }
+  if (!fresh.some((m) => m.quality === 'good')) return status('ready', 'Gateway aktif, sensor tak terbaca')
+  return status('connected', 'Data sensor masuk normal')
+}
+
 export function connectionState(lastDataAt: string | null, now = Date.now()): ConnectionState {
   if (!lastDataAt) return 'nodata'
   return now - new Date(lastDataAt).getTime() <= LIVE_THRESHOLD_MS ? 'live' : 'stale'

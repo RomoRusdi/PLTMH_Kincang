@@ -2,6 +2,9 @@
 -- MIGRASI 005 – ESTIMASI DAYA DARI DEBIT
 -- ============================================================================
 -- Jalankan di SQL Editor SETELAH migrasi 004. Aman dijalankan ulang.
+-- Rumus di file ini diperbarui oleh 09-daya-tabel-pltmh.sql (rated head per
+-- bulan, efisiensi turbin × generator); bila file ini dijalankan ulang,
+-- jalankan 09 lagi sesudahnya.
 --
 -- Selama energy meter belum terpasang, daya pembangkit diperkirakan dari
 -- debit yang diukur radar:

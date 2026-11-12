@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useStationId } from '@/lib/station'
 import { useBrand } from '@/lib/brand'
-import { markOldMeasurements, useNow } from '@/lib/stationStatus'
+import { TELEMETRY_TONE, markOldMeasurements, telemetryStatus, useNow } from '@/lib/stationStatus'
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Banknote, TrendingUp, Wifi, WifiOff, RefreshCw, Zap } from 'lucide-react'
 import { useLatestMeasurements, useAlarms, useDeviceStatus, useTrendData, useAcknowledgeAlarm, useKpiData } from '@/lib/monitoring'
@@ -24,6 +24,7 @@ function DashboardPage() {
   // Nilai yang lama tidak diperbarui ditandai stale agar tidak terbaca sebagai data terkini.
   const now = useNow()
   const m = useMemo(() => markOldMeasurements(latest, now), [latest, now])
+  const telemetry = telemetryStatus(isConnected, latest, now)
   // Selama energy meter belum mengirim data, daya diperkirakan dari debit
   // (tag HYDRO.POWER_EST, migrasi 005). Nilai terukur selalu didahulukan.
   const powerEstimated = m['POWER.ACTIVE_POWER']?.quality !== 'good' && m['HYDRO.POWER_EST'] != null
@@ -100,7 +101,7 @@ function DashboardPage() {
               <p className="mt-1 text-xs text-text-secondary">Ringkasan telemetry, alarm, dan perangkat lapangan dalam satu tampilan.</p>
             </div>
             <div className="status-strip relative z-[1] sm:min-w-[280px] sm:justify-end">
-              <span className="inline-flex items-center gap-1.5"><span className={cn('h-2 w-2 rounded-full', isConnected ? 'bg-status-good animate-pulse' : 'bg-status-bad')} />{isConnected ? 'Telemetry live' : 'Telemetry offline'}</span>
+              <span className="inline-flex items-center gap-1.5" title={telemetry.detail}><span className={cn('h-2 w-2 rounded-full', TELEMETRY_TONE[telemetry.state].dot, telemetry.state === 'connected' && 'animate-pulse')} />Telemetry {telemetry.label.toLowerCase()}</span>
               <span>{onlineCount}/{totalCount || 0} perangkat online</span>
               <span className={cn(hasCritical ? 'text-accent-red' : 'text-text-secondary')}>{alarmCount} alarm aktif</span>
             </div>

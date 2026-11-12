@@ -6,7 +6,7 @@ type Filter = { column: string; operator: 'eq' | 'in'; value: unknown }
 
 const STATION_ID = (import.meta.env.VITE_STATION_ID as string | undefined) ?? 'ce9ceebb-921b-4275-83f1-1679cff06d04'
 const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001'
-const STORAGE_KEY = 'river-flow-guardian-mock-db-v7'
+const STORAGE_KEY = 'river-flow-guardian-mock-db-v8'
 const now = () => new Date().toISOString()
 
 interface MockStore {
@@ -21,6 +21,7 @@ interface MockStore {
   breakdown_reports: Row[]
   station_calibrations?: Row[]
   calibration_references?: Row[]
+  station_power_monthly?: Row[]
 }
 
 function station(id: string, name: string, location: string, latitude: number, longitude: number, status: string = 'active'): Row {
@@ -28,7 +29,8 @@ function station(id: string, name: string, location: string, latitude: number, l
     id, name, location, latitude, longitude, status,
     description: 'Stasiun pemantauan Digihydrotek', river_name: 'Sungai Citarum',
     installation_date: '2024-03-15', elevation_m: 48, created_at: now(), updated_at: now(),
-    power_head_m: id === STATION_ID ? 4.7 : null, power_efficiency: 0.8, power_max_kw: id === STATION_ID ? 320 : null, power_design_flow_m3s: null,
+    power_head_m: id === STATION_ID ? 4.75 : null, power_efficiency: 0.8463, power_max_kw: id === STATION_ID ? 320 : null, power_design_flow_m3s: id === STATION_ID ? 8.2 : null,
+    power_turbine_efficiency: id === STATION_ID ? 0.91 : null, power_generator_efficiency: id === STATION_ID ? 0.93 : null,
   }
 }
 
@@ -170,7 +172,8 @@ class MockQuery {
   private maxRows: number | null = null
   private one = false
   private selected = '*'
-  private operation: 'select' | 'insert' | 'update' | 'delete' = 'select'
+  private operation: 'select' | 'insert' | 'upsert' | 'update' | 'delete' = 'select'
+  private conflictColumns: string[] = ['id']
   private payload: Row | Row[] | null = null
 
   constructor(private readonly table: string) {}
@@ -182,6 +185,8 @@ class MockQuery {
   single() { this.one = true; return this }
   maybeSingle() { this.one = true; return this }
   insert(payload: Row | Row[]) { this.operation = 'insert'; this.payload = payload; return this }
+  /** Insert atau timpa baris dengan kunci yang sama (kolom onConflict, dipisah koma). */
+  upsert(payload: Row | Row[], options?: { onConflict?: string }) { this.operation = 'upsert'; this.payload = payload; this.conflictColumns = (options?.onConflict ?? 'id').split(',').map((c) => c.trim()); return this }
   update(payload: Row) { this.operation = 'update'; this.payload = payload; return this }
   delete() { this.operation = 'delete'; return this }
 
@@ -200,6 +205,18 @@ class MockQuery {
       rows.push(...inserted)
       saveStore()
       return Promise.resolve(this.result(inserted))
+    }
+    if (this.operation === 'upsert') {
+      const values = Array.isArray(this.payload) ? this.payload : [this.payload ?? {}]
+      const saved = values.map((value) => {
+        const existing = rows.find((row) => this.conflictColumns.every((column) => row[column] === value[column]))
+        if (existing) return Object.assign(existing, value, { updated_at: now() })
+        const row = { ...value, updated_at: now() }
+        rows.push(row)
+        return row
+      })
+      saveStore()
+      return Promise.resolve(this.result(saved))
     }
     const matched = rows.filter((row) => this.filters.every((filter) => filter.operator === 'eq' ? row[filter.column] === filter.value : (filter.value as unknown[]).includes(row[filter.column])))
     if (this.operation === 'update') {
@@ -233,7 +250,11 @@ function viewRows(table: string): Row[] {
   if (table === 'latest_measurements') {
     return store.tags.map((tag) => {
       const values = store.measurements.filter((row) => row.tag_id === tag.tag_id).sort((a, b) => String(b.source_timestamp).localeCompare(String(a.source_timestamp)))
-      const latest = values[0] ?? {}
+      let latest: Row = values[0] ?? {}
+      // Hook uji status telemetry: ready = sensor gagal dibaca, disconnected = stasiun berhenti mengirim.
+      const scenario = import.meta.env.VITE_MOCK_TELEMETRY as string | undefined
+      if (scenario === 'ready' && latest.source_timestamp) latest = { ...latest, value: null, quality: 'comm_failure', source_timestamp: now() }
+      if (scenario === 'disconnected' && latest.source_timestamp) latest = { ...latest, source_timestamp: new Date(Date.now() - 5 * 3600e3).toISOString() }
       return { ...latest, station_id: tag.station_id, tag_name: tag.name, unit: tag.unit, display_precision: tag.display_precision, alarm_high: tag.alarm_high, alarm_high_high: tag.alarm_high_high, alarm_low: tag.alarm_low, alarm_low_low: tag.alarm_low_low }
     })
   }
@@ -287,7 +308,18 @@ function stationOverviewRows(): Row[] {
   })
 }
 
+/** Tabel rencana produksi PLTMH Kincang sebagai contoh data bulanan. */
+const MOCK_POWER_MONTHLY: [number, number, number, number][] = [
+  [4.8, 4.9, 0, 2], [4.8, 4.9, 0, 2], [5, 4.9, 0, 2], [5, 5, 0, 2], [5, 5, 0, 2], [5, 5, 0, 2],
+  [5, 5, 0, 2], [4.75, 3.5, 14, 0], [4.75, 3.5, 14, 0], [4.75, 3.5, 14, 0], [4.75, 5, 0, 2], [4.75, 5, 0, 2],
+]
+
 function rowsFor(table: string) {
+  if (table === 'station_power_monthly' && !store.station_power_monthly) {
+    store.station_power_monthly = MOCK_POWER_MONTHLY.map(([head_m, permit_flow_m3s, drying_days, maintenance_days], index) => ({
+      station_id: STATION_ID, month: index + 1, head_m, permit_flow_m3s, drying_days, maintenance_days, updated_at: now(),
+    }))
+  }
   if (table === 'latest_measurements' || table === 'device_health_view' || table === 'active_alarms_view' || table === 'daily_energy_summary') return viewRows(table)
   if (table === 'station_overview') return stationOverviewRows()
   return (store[table as keyof MockStore] ?? []) as Row[]

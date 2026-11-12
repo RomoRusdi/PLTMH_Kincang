@@ -14,12 +14,13 @@ aman dijalankan ulang.
 | `06-manajemen-pengguna.sql` | Admin per stasiun, halaman Pengguna |
 | `07-seed.sql` | Stasiun PLTMH Kincang, perangkat, dan tag |
 | `08-merek-akun.sql` | Merek khusus per akun: kincang@admin.com melihat PT. Naluri Energi Utama (diatur dari SQL Editor) |
+| `09-daya-tabel-pltmh.sql` | Rumus daya sesuai tabel produksi PLTMH: rated head per bulan, efisiensi turbin × generator, rencana produksi kWh |
 | `demo-history.sql` | Opsional: riwayat dummy 3 hari untuk grafik |
 | `demo-5-stasiun.sql` | Opsional: 4 stasiun [DEMO] tambahan; hapus sebelum dipakai operasional |
 
 ## Project Supabase baru
 
-1. Jalankan `01` sampai `08` berurutan.
+1. Jalankan `01` sampai `09` berurutan.
 2. Deploy Edge Function `supabase/functions/admin-users` (Edge Functions →
    Deploy a new function → Via Editor → nama `admin-users`). Dipakai halaman
    **Pengguna** untuk membuat akun.
@@ -46,12 +47,15 @@ union all select 'ringkasan stasiun (03)', (to_regclass('public.station_overview
 union all select 'retensi (04)', (to_regclass('public.measurements_hourly') is not null)::text
 union all select 'estimasi daya (05)', (exists (select 1 from information_schema.columns where table_name = 'stations' and column_name = 'power_head_m'))::text
 union all select 'manajemen pengguna (06)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'email'))::text
-union all select 'merek akun (08)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'brand_name'))::text;
+union all select 'merek akun (08)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'brand_name'))::text
+union all select 'daya tabel PLTMH (09)', (to_regclass('public.station_power_monthly') is not null)::text;
 ```
 
 ## Catatan
 
 - File ini hanya berisi struktur dan aturan, tanpa password atau key, sehingga
   aman disimpan di GitHub.
+- `09` menggantikan rumus daya di `05`. Bila `05` dijalankan ulang, jalankan
+  `09` lagi sesudahnya.
 - Ukuran data telemetri dapat dipantau dengan query di akhir
   `04-interval-retensi.sql`.

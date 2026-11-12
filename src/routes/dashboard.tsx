@@ -3,7 +3,7 @@ import { StationProvider, useStation, useStationId } from '@/lib/station'
 import { useAuth } from '@/lib/auth'
 import { MonitoringProvider, useAlarms, useLatestMeasurements } from '@/lib/monitoring'
 import { BrandIcon, useBrand, useBrandDocumentTitle } from '@/lib/brand'
-import { LIVE_THRESHOLD_MS, useNow } from '@/lib/stationStatus'
+import { TELEMETRY_TONE, telemetryStatus, useNow } from '@/lib/stationStatus'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, Bell, Activity, Monitor, FileText, ClipboardList,
@@ -113,17 +113,13 @@ function AppLayout() {
   useBrandDocumentTitle(brand)
   const { theme, toggleTheme } = useTheme()
   const { count: alarmCount, hasCritical } = useAlarms(STATION_ID, { notify: true })
-  const { isConnected, lastUpdate } = useLatestMeasurements(STATION_ID)
+  const { data: latest, isConnected, lastUpdate } = useLatestMeasurements(STATION_ID)
   const now = useNow()
-  // "Live" berarti data stasiun benar-benar masih masuk, bukan sekadar
-  // koneksi realtime browser ke Supabase tersambung.
-  const telemetry = !isConnected
-    ? { ok: false, label: 'Realtime terputus' }
-    : !lastUpdate
-      ? { ok: false, label: 'Menunggu data' }
-      : now - lastUpdate.getTime() > LIVE_THRESHOLD_MS
-        ? { ok: false, label: 'Data terhenti' }
-        : { ok: true, label: 'Telemetry live' }
+  // Terhubung = data sensor valid masih masuk; Ready = gateway mengirim tetapi
+  // sensor tidak terbaca; Terputus = tidak ada kiriman dari stasiun.
+  const telemetry = telemetryStatus(isConnected, latest, now)
+  const telemetryTone = TELEMETRY_TONE[telemetry.state]
+  const TelemetryIcon = telemetry.state === 'disconnected' ? WifiOff : Wifi
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -184,16 +180,19 @@ function AppLayout() {
 
         {/* Station connection */}
         <div
-          title={sidebarCollapsed ? telemetry.label : undefined}
+          role="status"
+          aria-label={`Telemetry: ${telemetry.label}. ${telemetry.detail}`}
+          title={`${telemetry.label}: ${telemetry.detail}`}
           className={cn('mx-3 mt-3 flex items-center gap-2 rounded-card border border-border bg-surface-2/70 px-3 py-2.5 shadow-sm', sidebarCollapsed && 'lg:mx-2 lg:justify-center lg:px-2')}
         >
-          {telemetry.ok ? <Wifi className="h-3.5 w-3.5 flex-shrink-0 text-status-good" /> : <WifiOff className="h-3.5 w-3.5 flex-shrink-0 text-status-bad" />}
+          <TelemetryIcon className={cn('h-3.5 w-3.5 flex-shrink-0', telemetryTone.text)} aria-hidden="true" />
           <div className={cn('min-w-0 leading-tight', sidebarCollapsed && 'lg:hidden')}>
             <div className="flex items-center gap-1.5">
-              <span className={cn('h-1.5 w-1.5 rounded-full', telemetry.ok ? 'bg-status-good' : 'bg-status-bad')} />
-              <p className={cn('text-[10px] font-semibold', telemetry.ok ? 'text-status-good' : 'text-status-bad')}>{telemetry.label}</p>
+              <span className={cn('h-1.5 w-1.5 rounded-full', telemetryTone.dot, telemetry.state === 'connected' && 'animate-pulse')} />
+              <p className={cn('text-[10px] font-semibold', telemetryTone.text)}>{telemetry.label}</p>
             </div>
-            <p className="mt-0.5 truncate text-[9px] text-text-secondary">{lastUpdate ? formatRelativeTime(lastUpdate) : 'Menunggu data'}</p>
+            <p className="mt-0.5 truncate text-[9px] text-text-secondary">{telemetry.detail}</p>
+            <p className="truncate text-[9px] text-text-secondary">{lastUpdate ? `Data terakhir ${formatRelativeTime(lastUpdate)}` : 'Menunggu data'}</p>
           </div>
         </div>
         <nav aria-label="Navigasi utama" className={cn('flex-1 space-y-5 overflow-y-auto px-2 py-5', sidebarCollapsed && 'lg:px-2')}>

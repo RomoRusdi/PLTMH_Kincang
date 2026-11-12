@@ -114,7 +114,21 @@ export interface Station {
   power_efficiency: number
   power_max_kw: number | null
   power_design_flow_m3s: number | null
+  /** Efisiensi turbin dan generator (09-daya-tabel-pltmh.sql); bila keduanya diisi, menggantikan power_efficiency. */
+  power_turbine_efficiency: number | null
+  power_generator_efficiency: number | null
   created_at: string
+  updated_at: string
+}
+
+/** Parameter bulanan dari tabel rencana produksi PLTMH (09-daya-tabel-pltmh.sql). */
+export interface StationPowerMonthly {
+  station_id: string
+  month: number
+  head_m: number | null
+  permit_flow_m3s: number | null
+  drying_days: number
+  maintenance_days: number
   updated_at: string
 }
 
@@ -419,6 +433,7 @@ export interface Database {
           status: StationStatus; river_name: string | null; installation_date: string | null
           elevation_m: number | null; calibration_interval_days: number; created_at: string; updated_at: string
           power_head_m: number | null; power_efficiency: number; power_max_kw: number | null; power_design_flow_m3s: number | null
+          power_turbine_efficiency: number | null; power_generator_efficiency: number | null
         }
         Insert: {
           id?: string; name: string; location: string
@@ -432,6 +447,22 @@ export interface Database {
           status?: StationStatus; river_name?: string | null; installation_date?: string | null
           elevation_m?: number | null; calibration_interval_days?: number; created_at?: string; updated_at?: string
           power_head_m?: number | null; power_efficiency?: number; power_max_kw?: number | null; power_design_flow_m3s?: number | null
+          power_turbine_efficiency?: number | null; power_generator_efficiency?: number | null
+        }
+        Relationships: []
+      }
+      station_power_monthly: {
+        Row: {
+          station_id: string; month: number; head_m: number | null; permit_flow_m3s: number | null
+          drying_days: number; maintenance_days: number; updated_at: string
+        }
+        Insert: {
+          station_id: string; month: number; head_m?: number | null; permit_flow_m3s?: number | null
+          drying_days?: number; maintenance_days?: number; updated_at?: string
+        }
+        Update: {
+          station_id?: string; month?: number; head_m?: number | null; permit_flow_m3s?: number | null
+          drying_days?: number; maintenance_days?: number; updated_at?: string
         }
         Relationships: []
       }
