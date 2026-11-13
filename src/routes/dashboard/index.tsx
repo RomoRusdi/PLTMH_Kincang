@@ -78,11 +78,13 @@ function DashboardPage() {
         subtitle={`Selamat datang, ${profile?.full_name ?? profile?.role ?? 'User'}`}
         actions={
           <div className="flex items-center gap-3">
-            <div className={cn('flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border',
-              isConnected ? 'text-status-good border-status-good/30 bg-status-good/10'
-                          : 'text-status-bad border-status-bad/30 bg-status-bad/10')}>
-              {isConnected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-              {isConnected ? 'Live' : 'Offline'}
+            {/* Sama dengan status telemetry di sidebar (Terhubung / Ready / Terputus). */}
+            <div title={telemetry.detail} className={cn('flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border',
+              telemetry.state === 'connected' ? 'text-status-good border-status-good/30 bg-status-good/10'
+                : telemetry.state === 'ready' ? 'text-status-warning border-status-warning/30 bg-status-warning/10'
+                  : 'text-status-bad border-status-bad/30 bg-status-bad/10')}>
+              {telemetry.state === 'disconnected' ? <WifiOff className="w-3 h-3" /> : <Wifi className="w-3 h-3" />}
+              {telemetry.label}
             </div>
             {lastUpdate && (
               <span className="text-[10px] text-text-secondary hidden sm:block">
@@ -471,8 +473,12 @@ function TrendPanel({ chartData, trendLoading, trendError }: {
               fill="url(#wlGrad)" dot={false} activeDot={{ r: 4 }} />
           </AreaChart>
         </ResponsiveContainer>
-      ) : (
+      ) : trendLoading ? (
         <div className="h-[200px] skeleton rounded" />
+      ) : (
+        <div className="h-[200px] flex items-center justify-center rounded border border-dashed border-border text-xs text-text-secondary">
+          Belum ada data permukaan air dalam 6 jam terakhir
+        </div>
       )}
     </div>
   )

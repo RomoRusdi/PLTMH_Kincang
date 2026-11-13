@@ -365,7 +365,7 @@ function rpc(name: string, args: Record<string, unknown>) {
     if (!Number.isFinite(from) || !Number.isFinite(to) || !Number.isFinite(interval) || interval <= 0) return { data: null, error: error('Parameter periode trend tidak valid') }
     const buckets = new Map<number, number[]>()
     store.measurements
-      .filter((row) => row.tag_id === args.p_tag_id && row.quality === 'good')
+      .filter((row) => row.tag_id === args.p_tag_id && row.quality === 'good' && (!args.p_station_id || row.station_id === args.p_station_id))
       .forEach((row) => {
         const timestamp = Date.parse(String(row.source_timestamp))
         if (timestamp >= from && timestamp <= to) {
@@ -375,7 +375,7 @@ function rpc(name: string, args: Record<string, unknown>) {
         }
       })
     // Keep the mock dashboard useful even when its seed predates the current clock.
-    if (!buckets.size && args.p_tag_id === 'HYDRO.WATER_LEVEL') {
+    if (!buckets.size && args.p_tag_id === 'HYDRO.WATER_LEVEL' && (!args.p_station_id || args.p_station_id === STATION_ID)) {
       for (let timestamp = Math.max(from, to - 6 * 3600000); timestamp <= to; timestamp += interval) {
         const hours = (timestamp - from) / 3600000
         buckets.set(timestamp, [1.35 + Math.sin(hours * 1.7) * 0.08 + Math.sin(hours * 0.4) * 0.03])
