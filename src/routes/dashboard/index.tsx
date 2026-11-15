@@ -54,13 +54,15 @@ function DashboardPage() {
     }
   }
 
+  // get_trend_data sudah mengurutkan bucket naik (lama → baru); jangan dibalik,
+  // agar sumbu waktu berjalan kiri → kanan dan titik "+1j" berada setelah data terbaru.
   const chartData = (trendData ?? []).map((p) => ({
     time: formatTimestamp(p.bucket, 'HH:mm'), avg: p.avg_value,
-  })).reverse()
+  }))
 
   const powerChartData = (powerTrendData ?? []).map((p) => ({
     time: formatTimestamp(p.bucket, 'HH:mm'), avg: p.avg_value,
-  })).reverse()
+  }))
 
   const powerForecast = useMemo(() => predictPower(
     (powerTrendData ?? []).map((point) => point.avg_value ?? Number.NaN),

@@ -23,6 +23,7 @@ import {
   type Database,
   type CauseCategory,
 } from './supabase'
+import { aggregateDailyEnergy, DAY_MS, startOfDayWib, type DailyEnergy } from './powerEstimate'
 import { useStationId } from './station'
 
 // ============================================================================
@@ -420,7 +421,41 @@ export function useTrendData(tagId: string, fromTs: string, toTs: string, interv
 }
 
 // ============================================================================
-// useDailyEnergyHistory - riwayat daya harian untuk ringkasan history
+// useDailyEstimatedEnergy - energi harian (WIB) dari daya estimasi debit
+// ============================================================================
+
+// 30 hari × 24 bucket per jam = 720 baris, di bawah batas 1.000 baris per
+// permintaan API Supabase. Periode lebih panjang diambil bertahap.
+const ENERGY_CHUNK_DAYS = 30
+
+export function useDailyEstimatedEnergy(stationId: string, days = 7, enabled = true) {
+  return useQuery({
+    queryKey: ['daily-estimated-energy', stationId, days],
+    queryFn: async (): Promise<DailyEnergy[]> => {
+      const now = Date.now()
+      const start = startOfDayWib(now) - (days - 1) * DAY_MS
+      const rows: TrendDataPoint[] = []
+      for (let from = start; from < now; from += ENERGY_CHUNK_DAYS * DAY_MS) {
+        const to = Math.min(from + ENERGY_CHUNK_DAYS * DAY_MS - 1, now)
+        const { data, error } = await supabase.rpc('get_trend_data', {
+          p_station_id: stationId,
+          p_tag_id: 'HYDRO.POWER_EST',
+          p_from_ts: new Date(from).toISOString(),
+          p_to_ts: new Date(to).toISOString(),
+          p_interval_minutes: 60,
+        })
+        if (error) throw error
+        rows.push(...((data ?? []) as TrendDataPoint[]))
+      }
+      return aggregateDailyEnergy(rows, start, now)
+    },
+    enabled: enabled && !!stationId,
+    staleTime: 60000,
+  })
+}
+
+// ============================================================================
+// useDailyEnergyHistory - riwayat daya harian dari energy meter (POWER.*)
 // ============================================================================
 
 export function useDailyEnergyHistory(stationId: string, days = 90) {

@@ -381,6 +381,18 @@ function rpc(name: string, args: Record<string, unknown>) {
         buckets.set(timestamp, [1.35 + Math.sin(hours * 1.7) * 0.08 + Math.sin(hours * 0.4) * 0.03])
       }
     }
+    // Daya estimasi tiruan (≈ satu sampel per menit) agar grafik daya dan
+    // produksi energi harian di mode demo tidak kosong. Satu jam setiap ±4 hari
+    // dikosongkan untuk meniru gangguan komunikasi.
+    if (!buckets.size && args.p_tag_id === 'HYDRO.POWER_EST' && (!args.p_station_id || args.p_station_id === STATION_ID)) {
+      const perBucket = Math.max(1, Math.min(60, Math.round(interval / 60000)))
+      for (let timestamp = Math.floor(from / interval) * interval; timestamp <= to; timestamp += interval) {
+        const hours = timestamp / 3600000
+        if (Math.floor(hours) % 97 === 0) continue
+        const kw = Math.max(60, Math.min(320, 185 + Math.sin(hours / 9) * 45 + Math.sin(hours * 1.3) * 12))
+        buckets.set(timestamp, Array<number>(perBucket).fill(kw))
+      }
+    }
     const data = [...buckets.entries()].sort(([a], [b]) => a - b).map(([timestamp, numbers]) => ({
       bucket: new Date(timestamp).toISOString(), avg_value: numbers.reduce((sum, value) => sum + value, 0) / numbers.length,
       min_value: Math.min(...numbers), max_value: Math.max(...numbers), sample_count: numbers.length,

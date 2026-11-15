@@ -1,20 +1,24 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useStationId } from '@/lib/station'
 import { useMemo, useState } from 'react'
-import { LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
+import { LineChart, ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts'
 import { BarChart3, RefreshCw, Download, Info } from 'lucide-react'
 import { exportCsv } from '@/lib/exportCsv'
-import { useDailyEnergyHistory, useTrendData } from '@/lib/monitoring'
+import { useDailyEstimatedEnergy, useTrendData } from '@/lib/monitoring'
 import { PageHeader } from '@/components/PageHeader'
 import { formatTimestamp } from '@/lib/utils'
 
 export const Route = createFileRoute('/dashboard/trend')({ component: TrendPage })
 
+// Daya memakai estimasi dari debit (HYDRO.POWER_EST), bukan energy meter
+// (POWER.ACTIVE_POWER), karena energy meter belum terhubung ke sistem.
+const POWER_TAG = 'HYDRO.POWER_EST'
+
 const TAG_OPTIONS = [
   { value: 'HYDRO.WATER_LEVEL', label: 'Level Air', color: '#58a6ff', unit: 'm', high: 1.5, low: 0.3 },
   { value: 'HYDRO.VELOCITY', label: 'Kecepatan Aliran', color: '#3fb950', unit: 'm/s', high: 3, low: null },
   { value: 'HYDRO.FLOW_RATE', label: 'Debit', color: '#58a6ff', unit: 'm³/s', high: null, low: 0.1 },
-  { value: 'POWER.ACTIVE_POWER', label: 'Daya Aktif', color: '#d29922', unit: 'kW', high: null, low: null },
+  { value: POWER_TAG, label: 'Daya (estimasi dari debit)', color: '#d29922', unit: 'kW', high: null, low: null },
   { value: 'POWER.FREQUENCY', label: 'Frekuensi', color: '#a371f7', unit: 'Hz', high: 50.5, low: 49.5 },
   { value: 'PANEL.TEMPERATURE', label: 'Suhu Panel', color: '#f0883e', unit: '°C', high: 45, low: null },
 ] as const
@@ -40,7 +44,9 @@ function TrendPage() {
   }, [periodHours])
   const intervalMin = periodHours <= 6 ? 5 : periodHours <= 24 ? 15 : periodHours <= 72 ? 60 : 360
   const { data: trendData, isLoading, isError, error, refetch } = useTrendData(selectedTag, fromTs, toTs, intervalMin)
-  const { data: dailyEnergy, isLoading: isDailyLoading, isError: isDailyError, refetch: refetchDaily } = useDailyEnergyHistory(STATION_ID, periodHours >= 2160 ? 90 : Math.max(7, Math.ceil(periodHours / 24)))
+  const isPower = selectedTag === POWER_TAG
+  const dailyDays = periodHours >= 2160 ? 90 : Math.max(7, Math.ceil(periodHours / 24))
+  const { data: dailyEnergy, isLoading: isDailyLoading, isError: isDailyError, refetch: refetchDaily } = useDailyEstimatedEnergy(STATION_ID, dailyDays, isPower)
 
   const chartData = (trendData ?? []).map((p) => ({
     time: formatTimestamp(p.bucket, 'dd/MM HH:mm'),
@@ -58,10 +64,11 @@ function TrendPage() {
     min: Math.min(...valid.map((p) => p.min_value ?? Infinity)),
     n: sampleCount,
   } : null
-  const dailyChartData = [...(dailyEnergy ?? [])].reverse().map((row) => ({
-    day: formatTimestamp(row.day, 'dd/MM'),
-    energy: row.total_energy_kwh == null ? null : Number(row.total_energy_kwh.toFixed(1)),
-    power: row.avg_power_kw == null ? null : Number(row.avg_power_kw.toFixed(1)),
+  const dailyChartData = (dailyEnergy ?? []).map((row) => ({
+    day: `${row.day.slice(8, 10)}/${row.day.slice(5, 7)}`,
+    energy: row.energyKwh == null ? null : Number(row.energyKwh.toFixed(1)),
+    power: row.avgPowerKw == null ? null : Number(row.avgPowerKw.toFixed(1)),
+    hours: Number(row.dataHours.toFixed(1)),
   }))
 
   return (
@@ -88,7 +95,7 @@ function TrendPage() {
       <TrendControls selectedTag={selectedTag} setSelectedTag={setSelectedTag}
         periodHours={periodHours} setPeriodHours={setPeriodHours} />
       <div className="dashboard-shell flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
-        <div className="flex items-start gap-2 rounded-card border border-accent-blue/20 bg-accent-blue/5 px-3 py-2 text-xs text-text-secondary"><Info className="w-3.5 h-3.5 text-accent-blue mt-0.5 flex-shrink-0" /><span>Grafik menampilkan rata-rata per interval beserta rentang minimum–maksimum. Interval otomatis menyesuaikan periode.</span></div>
+        <div className="flex items-start gap-2 rounded-card border border-accent-blue/20 bg-accent-blue/5 px-3 py-2 text-xs text-text-secondary"><Info className="w-3.5 h-3.5 text-accent-blue mt-0.5 flex-shrink-0" /><span>Grafik menampilkan rata-rata per interval beserta rentang minimum–maksimum. Interval otomatis menyesuaikan periode.{isPower && ' Daya dihitung dari debit radar dengan rumus tabel produksi PLTMH (9,8 × debit × rated head × efisiensi turbin × efisiensi generator), bukan pembacaan energy meter.'}</span></div>
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
@@ -107,7 +114,7 @@ function TrendPage() {
           </div>
         )}
         <TrendChart chartData={chartData} tagMeta={tagMeta} periodHours={periodHours} isLoading={isLoading} isError={isError} errorMessage={error instanceof Error ? error.message : null} />
-        <DailyHistoryChart data={dailyChartData} periodHours={periodHours} isLoading={isDailyLoading} isError={isDailyError} />
+        {isPower && <DailyHistoryChart data={dailyChartData} days={dailyDays} isLoading={isDailyLoading} isError={isDailyError} />}
         {chartData.length > 0 && <TrendTable chartData={[...chartData].reverse()} />}
       </div>
     </div>
@@ -159,8 +166,8 @@ function TrendChart({ chartData, tagMeta, periodHours, isLoading, isError, error
         </div>
       ) : chartData.length === 0 ? (
         <div className="h-72 flex flex-col items-center justify-center gap-1 text-center text-text-secondary text-sm">
-          <span>Tidak ada data pada periode ini.</span>
-          <span className="text-xs">Pastikan seed data sudah dijalankan dan tag sensor tersedia.</span>
+          <span>Belum ada data {tagMeta.label.toLowerCase()} pada periode ini.</span>
+          <span className="text-xs">Stasiun ini belum mengirim data untuk parameter tersebut, atau datanya tidak valid. Coba periode yang lebih panjang atau parameter lain.</span>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={300}>
@@ -183,40 +190,59 @@ function TrendChart({ chartData, tagMeta, periodHours, isLoading, isError, error
   )
 }
 
-function DailyHistoryChart({ data, periodHours, isLoading, isError }: {
-  data: { day: string; energy: number | null; power: number | null }[]
-  periodHours: number
+function DailyHistoryChart({ data, days, isLoading, isError }: {
+  data: { day: string; energy: number | null; power: number | null; hours: number }[]
+  days: number
   isLoading: boolean
   isError: boolean
 }) {
+  const hasData = data.some((d) => d.energy != null)
+  const totalEnergy = data.reduce((sum, d) => sum + (d.energy ?? 0), 0)
   return (
     <div className="chart-card">
       <div className="flex items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-sm font-semibold text-text-primary">Riwayat produksi harian</h2>
-          <p className="text-[11px] text-text-secondary mt-1">Energi bersih dan rata-rata daya per hari</p>
+          <h2 className="text-sm font-semibold text-text-primary">Produksi energi harian (estimasi)</h2>
+          <p className="text-[11px] text-text-secondary mt-1">Energi dan rata-rata daya per hari (WIB), dihitung dari daya estimasi debit</p>
         </div>
-        <BarChart3 className="w-4 h-4 text-accent-orange" />
+        <div className="flex items-center gap-3">
+          {hasData && <span className="text-xs text-text-secondary">Total {days} hari: <span className="font-semibold tabular-nums text-text-primary">{totalEnergy.toLocaleString('id-ID', { maximumFractionDigits: 0 })} kWh</span></span>}
+          <BarChart3 className="w-4 h-4 text-accent-orange" />
+        </div>
       </div>
       {isLoading ? <div className="h-64 skeleton rounded" /> : isError ? (
-        <div className="h-64 flex items-center justify-center text-sm text-red-300">Gagal memuat riwayat daya harian.</div>
-      ) : data.length === 0 ? (
-        <div className="h-64 flex items-center justify-center text-sm text-text-secondary">Belum ada riwayat daya pada periode ini.</div>
+        <div className="h-64 flex items-center justify-center text-sm text-red-300">Gagal memuat produksi energi harian.</div>
+      ) : !hasData ? (
+        <div className="h-64 flex items-center justify-center text-sm text-text-secondary">Belum ada data daya estimasi pada periode ini.</div>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={data} margin={{ top: 4, right: 8, left: -15, bottom: 0 }}>
+          <ComposedChart data={data} margin={{ top: 4, right: 8, left: -5, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'hsl(var(--text-secondary))' }} interval="preserveStartEnd" />
-            <YAxis yAxisId="energy" tick={{ fontSize: 10, fill: 'hsl(var(--text-secondary))' }} />
-            <YAxis yAxisId="power" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--text-secondary))' }} />
-            <Tooltip contentStyle={{ background: 'hsl(var(--surface))', border: '1px solid hsl(var(--border))', borderRadius: 6 }} />
+            <YAxis yAxisId="energy" tick={{ fontSize: 10, fill: 'hsl(var(--text-secondary))' }} unit=" kWh" width={70} />
+            <YAxis yAxisId="power" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--text-secondary))' }} unit=" kW" width={55} />
+            <Tooltip content={<DailyTooltip />} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar yAxisId="energy" dataKey="energy" name="Energi (kWh)" fill="#d29922" radius={[2, 2, 0, 0]} />
-            <Line yAxisId="power" type="monotone" dataKey="power" name="Daya rata-rata (kW)" stroke="#58a6ff" strokeWidth={2} dot={false} />
-          </LineChart>
+            <Bar yAxisId="energy" dataKey="energy" name="Energi" fill="#d29922" radius={[2, 2, 0, 0]} />
+            <Line yAxisId="power" type="monotone" dataKey="power" name="Daya rata-rata" stroke="#58a6ff" strokeWidth={2} dot={false} connectNulls={false} />
+          </ComposedChart>
         </ResponsiveContainer>
       )}
-      <p className="mt-2 text-[10px] text-text-secondary">Periode: {periodHours >= 2160 ? '90 hari terakhir' : `${Math.max(7, Math.ceil(periodHours / 24))} hari terakhir`}</p>
+      <p className="mt-2 text-[10px] text-text-secondary">Periode: {days} hari terakhir. Hari dengan data kurang dari 24 jam (gangguan komunikasi atau hari ini yang belum selesai) menghasilkan energi lebih kecil; jumlah jam data terlihat saat kursor diarahkan ke batang. Estimasi ini bukan pengganti pembacaan energy meter.</p>
+    </div>
+  )
+}
+
+function DailyTooltip({ active, payload, label }: { active?: boolean; payload?: { payload?: { energy: number | null; power: number | null; hours: number } }[]; label?: string }) {
+  const row = payload?.[0]?.payload
+  if (!active || !row) return null
+  const fmt = (v: number | null, unit: string) => (v == null ? '—' : `${v.toLocaleString('id-ID')} ${unit}`)
+  return (
+    <div className="rounded-md border border-border bg-surface px-3 py-2 text-[11px] shadow-sm">
+      <p className="mb-1 text-text-secondary">{label}</p>
+      <p className="text-text-primary">Energi: <span className="font-semibold tabular-nums">{fmt(row.energy, 'kWh')}</span></p>
+      <p className="text-text-primary">Daya rata-rata: <span className="font-semibold tabular-nums">{fmt(row.power, 'kW')}</span></p>
+      <p className={row.hours < 23.5 ? 'text-accent-yellow' : 'text-text-secondary'}>Data tersedia: {row.hours.toLocaleString('id-ID')} dari 24 jam</p>
     </div>
   )
 }

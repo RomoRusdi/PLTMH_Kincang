@@ -40,3 +40,68 @@ export function daysInMonth(year: number, month: number): number {
 export function currentMonthWib(now = new Date()): number {
   return Number(new Intl.DateTimeFormat('en-US', { month: 'numeric', timeZone: 'Asia/Jakarta' }).format(now))
 }
+
+// ============================================================================
+// Energi harian dari daya estimasi (tag HYDRO.POWER_EST)
+//
+// Data per jam dari get_trend_data dijumlahkan per hari WIB:
+//   energi (kWh) = Σ rata-rata daya per jam × durasi data valid pada jam itu
+// Gateway mengirim satu data per menit, sehingga durasi = jumlah sampel menit
+// (maksimal 60 menit per jam). Jam tanpa data tidak dihitung, sehingga hari yang
+// datanya tidak lengkap menghasilkan energi lebih kecil, bukan ditebak.
+// ============================================================================
+
+export const WIB_OFFSET_MS = 7 * 3600_000
+export const DAY_MS = 86_400_000
+
+export interface HourlyPowerBucket {
+  bucket: string
+  avg_value: number | null
+  sample_count: number
+}
+
+export interface DailyEnergy {
+  /** Tanggal WIB, format YYYY-MM-DD. */
+  day: string
+  energyKwh: number | null
+  avgPowerKw: number | null
+  /** Jumlah jam yang tercakup data valid (0–24). */
+  dataHours: number
+}
+
+/** Awal hari WIB (dalam epoch ms) yang memuat waktu `ms`. */
+export function startOfDayWib(ms: number): number {
+  return Math.floor((ms + WIB_OFFSET_MS) / DAY_MS) * DAY_MS - WIB_OFFSET_MS
+}
+
+export function dayKeyWib(ms: number): string {
+  return new Date(ms + WIB_OFFSET_MS).toISOString().slice(0, 10)
+}
+
+/**
+ * Jumlahkan bucket per jam menjadi energi harian WIB.
+ * Hari tanpa data tetap muncul (energi null) agar sumbu waktu grafik tidak melompat.
+ */
+export function aggregateDailyEnergy(buckets: HourlyPowerBucket[], fromMs: number, toMs: number, sampleMinutes = 1): DailyEnergy[] {
+  const byDay = new Map<string, { energy: number; weighted: number; samples: number; hours: number }>()
+  for (const b of buckets) {
+    if (b.avg_value == null || !Number.isFinite(b.avg_value) || !b.sample_count) continue
+    const day = dayKeyWib(Date.parse(b.bucket))
+    const hours = Math.min(b.sample_count * sampleMinutes, 60) / 60
+    const acc = byDay.get(day) ?? { energy: 0, weighted: 0, samples: 0, hours: 0 }
+    acc.energy += b.avg_value * hours
+    acc.weighted += b.avg_value * b.sample_count
+    acc.samples += b.sample_count
+    acc.hours += hours
+    byDay.set(day, acc)
+  }
+  const out: DailyEnergy[] = []
+  for (let t = startOfDayWib(fromMs); t <= toMs; t += DAY_MS) {
+    const day = dayKeyWib(t)
+    const acc = byDay.get(day)
+    out.push(acc
+      ? { day, energyKwh: acc.energy, avgPowerKw: acc.samples ? acc.weighted / acc.samples : null, dataHours: acc.hours }
+      : { day, energyKwh: null, avgPowerKw: null, dataHours: 0 })
+  }
+  return out
+}
