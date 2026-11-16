@@ -1,0 +1,17 @@
+{
+  "_note": "Worker prediksi AI PLTMH Kincang (npm run predict). Model dan metadata dari AI Engineer disalin ke folder services/models. Nama fitur harus sama dengan 'features' di file metadata; tiap fitur dipetakan ke tag di database. 'source': 'raw_value' memakai nilai asli radar sebelum kalibrasi web; pakai bila model dilatih dengan data sebelum kalibrasi Kincang disimpan (16-11-2026). Kecepatan dan jarak ke air tidak diubah kalibrasi.",
+  "station_id": "5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10",
+  "model_file": "models/lstm_kincang.onnx",
+  "meta_file": "models/lstm_kincang.json",
+  "target_tag": "HYDRO.POWER_EST",
+  "features": {
+    "level_m":             { "tag": "HYDRO.WATER_LEVEL", "source": "value" },
+    "kecepatan_aliran_ms": { "tag": "HYDRO.VELOCITY",    "source": "value" },
+    "debit_m3s":           { "tag": "HYDRO.FLOW_RATE",   "source": "value" },
+    "jarak_udara_m":       { "tag": "HYDRO.AIR_GAP",     "source": "value" }
+  },
+  "run_every_ms": 300000,
+  "offset_ms": 20000,
+  "max_gap_s": 120,
+  "max_data_age_s": 300
+}

@@ -315,6 +315,23 @@ const MOCK_POWER_MONTHLY: [number, number, number, number][] = [
   [5, 5, 0, 2], [4.75, 3.5, 14, 0], [4.75, 3.5, 14, 0], [4.75, 3.5, 14, 0], [4.75, 5, 0, 2], [4.75, 5, 0, 2],
 ]
 
+/** Daya estimasi tiruan yang sama dengan get_trend_data mock (kW). */
+function mockPowerKw(timestamp: number) {
+  const hours = timestamp / 3600000
+  return Math.max(60, Math.min(320, 185 + Math.sin(hours / 9) * 45 + Math.sin(hours * 1.3) * 12))
+}
+
+/** Satu batch prediksi LSTM tiruan: data terakhir 40 detik lalu, 5 langkah × 1 menit. */
+function mockPredictionRows(): Row[] {
+  const base = Math.floor((Date.now() - 40000) / 60000) * 60000 + 15000
+  return [1, 2, 3, 4, 5].map((step) => ({
+    id: step, station_id: STATION_ID, tag_id: 'HYDRO.POWER_EST', model: 'LSTM', model_version: '2026-11-16',
+    base_timestamp: new Date(base).toISOString(), target_timestamp: new Date(base + step * 60000).toISOString(),
+    horizon_step: step, value: Math.round((mockPowerKw(base + step * 60000) + step * 0.8) * 10) / 10, unit: 'kW',
+    out_of_range: false, created_at: new Date(base + 25000).toISOString(),
+  }))
+}
+
 function rowsFor(table: string) {
   if (table === 'station_power_monthly' && !store.station_power_monthly) {
     store.station_power_monthly = MOCK_POWER_MONTHLY.map(([head_m, permit_flow_m3s, drying_days, maintenance_days], index) => ({
@@ -323,6 +340,7 @@ function rowsFor(table: string) {
   }
   if (table === 'latest_measurements' || table === 'device_health_view' || table === 'active_alarms_view' || table === 'daily_energy_summary') return viewRows(table)
   if (table === 'station_overview') return stationOverviewRows()
+  if (table === 'predictions') return mockPredictionRows()
   return (store[table as keyof MockStore] ?? []) as Row[]
 }
 
@@ -398,6 +416,10 @@ function rpc(name: string, args: Record<string, unknown>) {
       min_value: Math.min(...numbers), max_value: Math.max(...numbers), sample_count: numbers.length,
     }))
     return { data, error: null }
+  }
+  if (name === 'get_prediction_accuracy') {
+    if (args.p_station_id !== STATION_ID) return { data: [], error: null }
+    return { data: [1, 2, 3, 4, 5].map((step) => ({ model: 'LSTM', model_version: '2026-11-16', horizon_step: step, sample_count: 288, mae: 3.1 + step * 1.4, rmse: 4.2 + step * 1.9, mape: 1.6 + step * 0.7 })), error: null }
   }
   if (name === 'get_alarm_statistics') {
     const alarms = store.alarms.filter((row) => row.station_id === args.p_station_id)

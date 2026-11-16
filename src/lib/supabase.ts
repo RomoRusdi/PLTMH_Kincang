@@ -121,6 +121,32 @@ export interface Station {
   updated_at: string
 }
 
+/** Hasil prediksi modul AI (11-prediksi-ai.sql); ditulis worker, hanya dibaca web. */
+export type Prediction = {
+  id: number
+  station_id: string
+  tag_id: string
+  model: string
+  model_version: string
+  base_timestamp: string
+  target_timestamp: string
+  horizon_step: number
+  value: number
+  unit: string
+  out_of_range: boolean
+  created_at: string
+}
+
+export type PredictionAccuracy = {
+  model: string
+  model_version: string
+  horizon_step: number
+  sample_count: number
+  mae: number | null
+  rmse: number | null
+  mape: number | null
+}
+
 /** Parameter bulanan dari tabel rencana produksi PLTMH (09-daya-tabel-pltmh.sql). */
 export interface StationPowerMonthly {
   station_id: string
@@ -451,6 +477,12 @@ export interface Database {
         }
         Relationships: []
       }
+      predictions: {
+        Row: Prediction
+        Insert: Partial<Prediction>
+        Update: Partial<Prediction>
+        Relationships: []
+      }
       station_power_monthly: {
         Row: {
           station_id: string; month: number; head_m: number | null; permit_flow_m3s: number | null
@@ -739,6 +771,10 @@ export interface Database {
       copy_station_config: {
         Args: { p_from: string; p_to: string }
         Returns: { devices: number; tags: number }
+      }
+      get_prediction_accuracy: {
+        Args: { p_station_id: string; p_hours?: number; p_tag_id?: string }
+        Returns: PredictionAccuracy[]
       }
       get_trend_data: {
         Args: { p_station_id: string; p_tag_id: string; p_from_ts: string; p_to_ts: string; p_interval_minutes?: number }

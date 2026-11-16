@@ -11,6 +11,7 @@
     "probe": "tsx src/probe.ts",
     "serial-test": "tsx src/serial-test.ts",
     "ingest": "tsx src/ingest.ts",
+    "predict": "tsx src/predict.ts",
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/demo-stations.ts"
   },
@@ -27,6 +28,7 @@
     "typescript": "^7.0.2"
   },
   "optionalDependencies": {
+    "onnxruntime-node": "^1.31.1",
     "serialport": "^13.0.0"
   }
 }

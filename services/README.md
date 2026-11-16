@@ -177,6 +177,31 @@ Bedanya dengan Kincang:
 - Jam Windows harus benar (WIB, sinkron internet). Data dengan jam lebih dari
   5 menit di depan ditolak database.
 
+## Prediksi AI (LSTM)
+
+`npm run predict` menjalankan worker prediksi (`src/predict.ts`). Tiap 5 menit
+worker mengambil 60 data per menit terakhir dari Supabase, menjalankan model
+ONNX dari AI Engineer, lalu menyimpan 5 langkah prediksi daya ke tabel
+`predictions` (`database/11-prediksi-ai.sql`). Dashboard menampilkannya di
+panel **Prediksi Daya AI**, terpisah dari estimasi regresi linear.
+
+- Model: `models/lstm_kincang.onnx` dan metadata `models/lstm_kincang.json`
+  (nama fitur, lookback, horizon, interval, x_min/x_max dan y_min/y_max dari
+  MinMaxScaler). Lihat `models/README.md`.
+- Pemetaan fitur ke tag ada di `config/predict-kincang.json`. `"source":
+  "raw_value"` memakai nilai asli radar sebelum kalibrasi web, untuk model yang
+  dilatih dengan data sebelum kalibrasi.
+- Mengikuti aturan saat latih: urutan dengan jeda lebih dari 2 menit tidak
+  dipakai, dan data lebih tua dari 5 menit tidak diprediksi. Hasil dibatasi
+  0 sampai kapasitas stasiun. Bila ada masukan di luar rentang data latih,
+  prediksi ditandai `out_of_range` dan dashboard memberi peringatan.
+- Memakai SERVICE ROLE key dari `.env`, jadi jalankan di komputer PLTMH yang
+  sudah menjalankan ingest. Worker hanya membaca data dan menulis ke tabel
+  `predictions`.
+- Uji tanpa menyimpan: `$env:PREDICT_DRY_RUN="1"; $env:PREDICT_ONCE="1"; npm run predict`.
+- Jalan otomatis: `scripts/jalankan-predict.cmd` lewat Task Scheduler
+  (trigger *At startup*), log di `logs/predict.log`.
+
 ## Interval data
 
 Gateway membaca PLC dan mengirim data **tiap 60 detik** (`poll_interval_ms` di

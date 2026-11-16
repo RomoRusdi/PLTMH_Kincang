@@ -100,7 +100,7 @@ export function PowerForecastPanel({
             <h2 className="text-sm font-semibold text-text-primary">Estimasi Tren Daya & Pendapatan</h2>
             <span className="rounded-full bg-accent-purple/15 px-2 py-0.5 text-[10px] text-accent-purple">Regresi linear · 6 jam</span>
           </div>
-          <p className="mt-1 text-[11px] text-text-secondary">Estimasi sederhana 1 jam ke depan dari tren daya {estimated ? 'estimasi (dihitung dari debit sungai)' : 'aktif'} 6 jam terakhir, bukan model AI. Prediksi dari modul AI akan tampil terpisah setelah terintegrasi. Bukan pengganti meter energi atau tagihan resmi.</p>
+          <p className="mt-1 text-[11px] text-text-secondary">Estimasi sederhana 1 jam ke depan dari tren daya {estimated ? 'estimasi (dihitung dari debit sungai)' : 'aktif'} 6 jam terakhir, bukan model AI. Prediksi model AI tampil terpisah di panel Prediksi Daya AI di Dashboard. Bukan pengganti meter energi atau tagihan resmi.</p>
         </div>
         <div className="flex items-center gap-2 self-start">
           {!hidden && (

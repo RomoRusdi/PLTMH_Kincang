@@ -16,12 +16,13 @@ aman dijalankan ulang.
 | `08-merek-akun.sql` | Merek khusus per akun: kincang@admin.com melihat PT. Naluri Energi Utama (diatur dari SQL Editor) |
 | `09-daya-tabel-pltmh.sql` | Rumus daya sesuai tabel produksi PLTMH: rated head per bulan, efisiensi turbin × generator, rencana produksi kWh |
 | `10-stasiun-singgi.sql` | Stasiun PLTM Singgi (1 × 200 kW): radar, PC gateway, tag radar, tabel rencana produksi 2026. Koreksi K ada di radar, jadi jangan dikalibrasi lagi dari web |
+| `11-prediksi-ai.sql` | Tabel `predictions` untuk hasil model AI (ditulis worker prediksi, web hanya membaca) dan fungsi akurasi per langkah horizon |
 | `demo-history.sql` | Opsional: riwayat dummy 3 hari untuk grafik |
 | `demo-5-stasiun.sql` | Opsional: 4 stasiun [DEMO] tambahan; hapus sebelum dipakai operasional |
 
 ## Project Supabase baru
 
-1. Jalankan `01` sampai `10` berurutan.
+1. Jalankan `01` sampai `11` berurutan.
 2. Deploy Edge Function `supabase/functions/admin-users` (Edge Functions →
    Deploy a new function → Via Editor → nama `admin-users`). Dipakai halaman
    **Pengguna** untuk membuat akun.
@@ -50,7 +51,8 @@ union all select 'estimasi daya (05)', (exists (select 1 from information_schema
 union all select 'manajemen pengguna (06)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'email'))::text
 union all select 'merek akun (08)', (exists (select 1 from information_schema.columns where table_name = 'profiles' and column_name = 'brand_name'))::text
 union all select 'daya tabel PLTMH (09)', (to_regclass('public.station_power_monthly') is not null)::text
-union all select 'stasiun Singgi (10)', (exists (select 1 from public.stations where id = '017b0c85-42ea-4283-ae91-e6343368b854'))::text;
+union all select 'stasiun Singgi (10)', (exists (select 1 from public.stations where id = '017b0c85-42ea-4283-ae91-e6343368b854'))::text
+union all select 'prediksi AI (11)', (to_regclass('public.predictions') is not null)::text;
 ```
 
 ## Catatan

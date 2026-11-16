@@ -4,9 +4,10 @@ import { isAtCapacity } from '@/lib/powerEstimate'
 import { useBrand } from '@/lib/brand'
 import { DEVICE_STATE_LABEL, deviceState, type DeviceState } from '@/lib/deviceStatus'
 import { TELEMETRY_TONE, markOldMeasurements, telemetryStatus, useNow } from '@/lib/stationStatus'
-import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { AreaChart, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react'
 import { PowerForecastPanel } from '@/components/PowerForecastPanel'
+import { AiPredictionPanel } from '@/components/AiPredictionPanel'
 import { useLatestMeasurements, useAlarms, useDeviceStatus, useTrendData, useAcknowledgeAlarm, useKpiData } from '@/lib/monitoring'
 import { useAuth } from '@/lib/auth'
 import { KpiCard, qualityLabel } from '@/components/KpiCard'
@@ -128,6 +129,8 @@ function DashboardPage() {
           loading={powerForecastLoading}
           hasHistory={powerChartData.some((point) => point.avg != null)}
         />}
+        {/* Prediksi model AI (tabel predictions), terpisah dari estimasi regresi linear di atas. */}
+        <AiPredictionPanel />
         {/* Trend + alarms */}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4 xl:gap-6 items-stretch">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 min-w-0">
@@ -423,7 +426,7 @@ function PowerTrendPanel({ chartData, forecast, trendLoading, trendError, estima
         <div className="h-[200px] flex items-center justify-center text-xs text-accent-orange">Data daya tidak tersedia</div>
       ) : hasData ? (
         <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={chartWithForecast} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+          <ComposedChart data={chartWithForecast} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="powerGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.25} />
@@ -440,7 +443,7 @@ function PowerTrendPanel({ chartData, forecast, trendLoading, trendError, estima
             />
             <Area type="monotone" dataKey="avg" stroke="#fbbf24" strokeWidth={2} fill="url(#powerGrad)" dot={false} activeDot={{ r: 4 }} />
             <Line type="monotone" dataKey="forecast" stroke="#a855f7" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3, fill: '#a855f7' }} connectNulls />
-          </AreaChart>
+          </ComposedChart>
         </ResponsiveContainer>
       ) : (
         <div className="h-[200px] flex items-center justify-center rounded-card bg-surface-2/40 text-xs text-text-secondary">Menunggu histori daya</div>
