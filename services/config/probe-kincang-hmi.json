@@ -1,0 +1,23 @@
+{
+  "_note": "KHUSUS UJI (npm run probe), bukan untuk gateway. Mengintip apakah HMI PLTMH Kincang bisa dibaca sebagai server Modbus TCP, dan di register mana angka daya/tegangan/arus disimpan. Hanya MEMBACA (FC03), tidak pernah menulis ke HMI. Ganti plc.host ke 192.168.1.12 bila komputer tersambung lewat kabel LAN ke HMI. Setelah register map diketahui, dibuat config gateway tersendiri.",
+  "station_id": "5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10",
+  "gateway_id": "10422b2e-269a-43ab-b75b-696307ed5878",
+  "poll_interval_ms": 60000,
+  "plc": {
+    "host": "192.168.18.52",
+    "port": 502,
+    "unit_id": 1,
+    "timeout_ms": 3000,
+    "protocol": "tcp",
+    "function_code": 3,
+    "inter_read_delay_ms": 100
+  },
+  "word_order": "big",
+  "read_blocks": [
+    { "start": 0, "count": 100 }
+  ],
+  "heartbeat_address": null,
+  "heartbeat_stale_polls": 2,
+  "radar_comm_address": null,
+  "tags": []
+}

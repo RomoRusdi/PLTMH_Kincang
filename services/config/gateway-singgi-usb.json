@@ -16,7 +16,9 @@
       "stop_bits": 1
     },
     "function_code": 4,
-    "inter_read_delay_ms": 300
+    "inter_read_delay_ms": 300,
+    "retries": 2,
+    "retry_delay_ms": 200
   },
   "word_order": "little",
   "_read_blocks_note": "Satu permintaan per data, persis seperti manual Modbus radar (0xAA01, 0xAA0B, 0xAA15, 0xAA22, 0xAA23, 0xAA25). 6 permintaan x jeda 300 ms masih jauh di bawah interval sampel 10 detik.",

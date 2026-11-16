@@ -118,16 +118,28 @@ export async function listSerialPorts(): Promise<{ path: string; manufacturer?: 
  * Baca semua blok register. Hasilnya array jarang yang diindeks dengan alamat
  * register absolut, sehingga tag cukup memakai alamatnya sendiri.
  */
-export async function readAllBlocks(client: ModbusClient, config: GatewayConfig): Promise<number[]> {
+export async function readAllBlocks(client: Pick<ModbusClient, 'readInputRegisters' | 'readHoldingRegisters'>, config: GatewayConfig): Promise<number[]> {
   const registers: number[] = []
   const delay = config.plc.inter_read_delay_ms ?? 0
+  // Radar RS-RAD-N01-3 kadang tidak menjawab satu permintaan; script pabrik
+  // dan spesifikasi Singgi mencoba ulang sampai 3 kali sebelum dianggap gagal.
+  const retries = Math.max(0, config.plc.retries ?? 0)
+  const retryDelay = config.plc.retry_delay_ms ?? 200
   const blocks = readBlocks(config)
   for (const [index, { start, count }] of blocks.entries()) {
     if (index > 0 && delay > 0) await sleep(delay)
-    const { data } = config.plc.function_code === 4
-      ? await client.readInputRegisters(start, count)
-      : await client.readHoldingRegisters(start, count)
-    data.forEach((word, offset) => { registers[start + offset] = word })
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const { data } = config.plc.function_code === 4
+          ? await client.readInputRegisters(start, count)
+          : await client.readHoldingRegisters(start, count)
+        data.forEach((word, offset) => { registers[start + offset] = word })
+        break
+      } catch (error) {
+        if (attempt >= retries) throw error
+        await sleep(retryDelay)
+      }
+    }
   }
   return registers
 }

@@ -77,6 +77,10 @@ export interface GatewayConfig {
     function_code?: 3 | 4
     /** Jeda antar permintaan; radar RS-RAD-N01-3 butuh ≥ 200 ms. */
     inter_read_delay_ms?: number
+    /** Jumlah coba ulang per blok bila tidak dijawab (bawaan 0). */
+    retries?: number
+    /** Jeda sebelum coba ulang (bawaan 200 ms). */
+    retry_delay_ms?: number
   }
   word_order: 'big' | 'little'
   /** Satu blok (format lama) atau beberapa blok bila register tidak berurutan. */
