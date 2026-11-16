@@ -31,8 +31,12 @@
 -- ----------------------------------------------------------------------------
 -- 1. Stasiun dan parameter estimasi daya
 -- ----------------------------------------------------------------------------
--- Daya = 9,8 × debit × rated head 7,70 m × 0,91 × 0,93 (= debit × 63,86),
--- debit dibatasi debit FS kontrak 3,25 m³/s, daya dibatasi 200 kW.
+-- Daya dari debit = 9,8 × debit × rated head 7,70 m × 0,91 × 0,93
+--                 = 63,86 × debit (kW), maksimal 200 kW.
+-- Kapasitas turbin tercapai pada debit 3,13 m³/s; di atas itu web menampilkan
+-- 200 kW dengan tanda "melebihi kapasitas turbin". Batas debit FS kontrak
+-- 3,25 m³/s tidak pernah berpengaruh karena batas 200 kW tercapai lebih dulu.
+-- Contoh (Spesifikasi bagian 4): 2,00 → 127,7 kW; 2,50 → 159,7 kW; 3,13 → 200 kW.
 insert into public.stations (
   id, name, location, latitude, longitude, description, status, river_name,
   power_head_m, power_turbine_efficiency, power_generator_efficiency, power_efficiency,
@@ -62,10 +66,15 @@ on conflict (id) do update set
 -- ----------------------------------------------------------------------------
 -- Tanpa PLC dan energy meter: gateway membaca radar langsung lewat USB ke
 -- RS-485. Data generator (Active Power) masih di SCADA Singgi yang terpisah.
-insert into public.devices (id, station_id, name, device_type, protocol, modbus_address, status, scan_interval_sec, manufacturer, model, config)
+--
+-- Perangkat dibuat NONAKTIF (enabled = false) supaya alarm engine tidak
+-- membuat alarm "offline" dan "data stale" selama gateway Singgi belum jalan.
+-- Data dari gateway tetap diterima walau nonaktif. Setelah data pertama
+-- masuk, aktifkan dengan query di bagian paling bawah file ini.
+insert into public.devices (id, station_id, name, device_type, protocol, modbus_address, status, enabled, scan_interval_sec, manufacturer, model, config)
 values
   ('416d3544-f13e-4349-ab9b-89f7ecb080b1', '017b0c85-42ea-4283-ae91-e6343368b854',
-   'Radar Flow-meter', 'radar_flowmeter', 'modbus_rtu', 1, 'offline', 60,
+   'Radar Flow-meter', 'radar_flowmeter', 'modbus_rtu', 1, 'offline', false, 60,
    'Shandong Renke', 'RS-RAD-N01-3',
    '{"tipe": "LM7863_GB", "firmware": "LM4_V1.4.62", "bus": "USB ke RS-485", "baud_rate": 9600, "parity": "none", "data_bits": 8, "stop_bits": 1,
      "kabel": "kuning = A, hijau = B, coklat = +9-30 VDC, putih = GND",
@@ -73,7 +82,7 @@ values
      "tipe_penampang": "persegi", "lebar_dasar_m": 2.0, "tinggi_pasang_m": 2.10,
      "catatan": "tinggi pasang belum diukur langsung (level absolut bisa meleset sampai ±10 cm); K final dari saran K setelah 7 hari data radar dan kW; jangan tulis baudrate, slave address, factory reset, angle calibration dari jauh"}'),
   ('ea17f506-5fa3-4341-a343-ab7a5b6c7733', '017b0c85-42ea-4283-ae91-e6343368b854',
-   'PC Gateway', 'gateway', 'mqtt', null, 'offline', 60,
+   'PC Gateway', 'gateway', 'mqtt', null, 'offline', false, 60,
    null, null,
    '{"role": "baca radar via USB ke RS-485, publish JSON via MQTT", "config": "services/config/gateway-singgi-usb.json"}')
 on conflict (id) do update set
@@ -105,7 +114,7 @@ values
    'HYDRO.VOLUME', 'Volume Kumulatif', 'Akumulasi debit radar sejak terakhir di-reset (ikut dikali K)',
    'float', 'm3', 'radar FC04 0xAA25 float64', null, null, null, null, 0, 0),
   ('017b0c85-42ea-4283-ae91-e6343368b854', '416d3544-f13e-4349-ab9b-89f7ecb080b1',
-   'HYDRO.POWER_EST', 'Daya Estimasi', 'Dihitung dari debit: 9,8 × debit × rated head × η turbin × η generator (= debit × 63,86), dibatasi debit FS kontrak dan kapasitas terpasang',
+   'HYDRO.POWER_EST', 'Daya Estimasi', 'Daya dari debit = 63,86 × debit radar (9,8 × 7,70 m × 0,91 × 0,93), maksimal 200 kW (debit ≥ 3,13 m³/s = melebihi kapasitas turbin)',
    'float', 'kW', 'hitungan dari HYDRO.FLOW_RATE', null, null, null, null, 0, 1),
   ('017b0c85-42ea-4283-ae91-e6343368b854', '416d3544-f13e-4349-ab9b-89f7ecb080b1',
    'RADAR.ANGLE', 'Sudut Radar', 'Peringatan bila bergeser > 0,5° dari 54,1° (cek dudukan); alarm bila > 3° dari 55° (pasang ulang)',
@@ -167,4 +176,13 @@ on conflict (station_id, month) do nothing;
 --
 -- Akses: superadmin langsung melihat stasiun ini. Admin/operator Singgi
 -- dibuat dari halaman Pengguna dengan memilih stasiun PLTM Singgi.
+-- ----------------------------------------------------------------------------
+
+-- ----------------------------------------------------------------------------
+-- SETELAH GATEWAY SINGGI MENGIRIM DATA: aktifkan alarm offline/stale.
+-- Jalankan terpisah (blok ke query ini saja, lalu Run). Jalankan ulang file
+-- ini tidak menonaktifkan perangkat lagi.
+--
+--   update public.devices set enabled = true
+--   where station_id = '017b0c85-42ea-4283-ae91-e6343368b854';
 -- ----------------------------------------------------------------------------
