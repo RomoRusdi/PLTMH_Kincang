@@ -8,7 +8,8 @@ import 'dotenv/config'
 // dan gateway tidak pernah berbeda alamat.
 // ============================================================================
 
-export type RegisterType = 'uint16' | 'int16' | 'uint32' | 'float32'
+/** float64 = 4 register; urutan word mengikuti word_order seperti float32. */
+export type RegisterType = 'uint16' | 'int16' | 'uint32' | 'float32' | 'float64'
 
 export interface TagMapping {
   tag: string
@@ -110,6 +111,7 @@ export function loadGatewayConfig(): GatewayConfig {
 }
 
 export function registerWidth(type: RegisterType): number {
+  if (type === 'float64') return 4
   return type === 'uint32' || type === 'float32' ? 2 : 1
 }
 
@@ -133,6 +135,15 @@ export function decodeRegisters(registers: number[], offset: number, tag: TagMap
       buffer.writeUInt16BE(hi, 0)
       buffer.writeUInt16BE(lo, 2)
       raw = buffer.readFloatBE(0)
+      break
+    }
+    case 'float64': {
+      // little: [w0, w1, w2, w3] dibaca w3 w2 w1 w0 (radar RS-RAD-N01-3 Singgi).
+      const words = registers.slice(offset, offset + 4)
+      const ordered = wordOrder === 'big' ? words : [...words].reverse()
+      const buffer = Buffer.alloc(8)
+      ordered.forEach((word, i) => buffer.writeUInt16BE(word, i * 2))
+      raw = buffer.readDoubleBE(0)
       break
     }
   }
@@ -159,6 +170,12 @@ export function encodeValue(value: number, tag: TagMapping, wordOrder: 'big' | '
       const buffer = Buffer.alloc(4)
       buffer.writeFloatBE(raw, 0)
       return order(buffer.readUInt16BE(0), buffer.readUInt16BE(2))
+    }
+    case 'float64': {
+      const buffer = Buffer.alloc(8)
+      buffer.writeDoubleBE(raw, 0)
+      const words = [0, 2, 4, 6].map((i) => buffer.readUInt16BE(i))
+      return wordOrder === 'big' ? words : words.reverse()
     }
   }
 }

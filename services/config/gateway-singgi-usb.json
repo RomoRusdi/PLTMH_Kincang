@@ -1,0 +1,38 @@
+{
+  "_note": "PLTM Singgi: radar RS-RAD-N01-3 (LM7863_GB, firmware LM4_V1.4.62) dibaca langsung lewat USB ke RS-485. Sumber: Spesifikasi Dashboard Radar Debit PLTM Singgi (16-11-2026). Modbus RTU 9600 8N1, slave 1, FC04. Register map BERBEDA dengan radar Kincang: float32/float64 dengan word rendah dulu (word_order little), alamat 0xAA.. ditulis desimal. Kecepatan (0xAA0F/0xAA11) sengaja tidak dikirim karena sudah dikali koreksi K, bukan kecepatan air sebenarnya. Cek nomor COM di Device Manager komputer Singgi. Satu bus RS-485 hanya boleh satu master: tutup radar_setup.py dan Radar Application Platform sebelum gateway jalan. tag harus sama dengan database/10-stasiun-singgi.sql.",
+  "station_id": "017b0c85-42ea-4283-ae91-e6343368b854",
+  "gateway_id": "ea17f506-5fa3-4341-a343-ab7a5b6c7733",
+  "poll_interval_ms": 60000,
+  "plc": {
+    "unit_id": 1,
+    "timeout_ms": 1500,
+    "protocol": "rtu-serial",
+    "serial": {
+      "path": "COM6",
+      "baud_rate": 9600,
+      "parity": "none",
+      "data_bits": 8,
+      "stop_bits": 1
+    },
+    "function_code": 4,
+    "inter_read_delay_ms": 300
+  },
+  "word_order": "little",
+  "read_blocks": [
+    { "start": 43521, "count": 1 },
+    { "start": 43531, "count": 1 },
+    { "start": 43541, "count": 2 },
+    { "start": 43554, "count": 7 }
+  ],
+  "heartbeat_address": null,
+  "heartbeat_stale_polls": 2,
+  "radar_comm_address": null,
+  "tags": [
+    { "tag": "HYDRO.FLOW_RATE",       "address": 43541, "type": "float32", "scale": 1,    "source": "radar", "radar_register": "0xAA15 debit sesaat (m3/s, sudah dikali K)" },
+    { "tag": "HYDRO.WATER_LEVEL",     "address": 43555, "type": "float32", "scale": 1,    "source": "radar", "radar_register": "0xAA23 level air (m)" },
+    { "tag": "HYDRO.VOLUME",          "address": 43557, "type": "float64", "scale": 1,    "source": "radar", "radar_register": "0xAA25 akumulasi debit (m3)" },
+    { "tag": "RADAR.ANGLE",           "address": 43554, "type": "int16",   "scale": 0.01, "source": "radar", "radar_register": "0xAA22 sudut radar (derajat)" },
+    { "tag": "RADAR.TEMPERATURE",     "address": 43521, "type": "int16",   "scale": 0.01, "source": "radar", "radar_register": "0xAA01 suhu internal (C)" },
+    { "tag": "RADAR.ECHO_AMPLITUDE",  "address": 43531, "type": "uint16",  "scale": 1,    "source": "radar", "radar_register": "0xAA0B amplitudo echo (dB)" }
+  ]
+}

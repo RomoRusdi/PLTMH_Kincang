@@ -147,6 +147,30 @@ mengirim langsung ke Supabase lewat internet (ZeroTier belum diperlukan).
 
 Hanya satu komputer yang boleh menjalankan gateway untuk satu radar.
 
+## Stasiun kedua: PLTM Singgi
+
+Komputer PLTM Singgi memakai paket `services` yang sama dengan
+`config/gateway-singgi-usb.json` (stasiun dari `database/10-stasiun-singgi.sql`).
+Bedanya dengan Kincang:
+
+- Radar Singgi beralamat slave **1** (Kincang 128), di COM6, 9600 8N1. Cek
+  nomor COM di Device Manager komputer Singgi.
+- Register map **berbeda** dengan Kincang: FC04 di alamat 0xAA.., nilai
+  float32/float64 dengan word rendah dulu (`"word_order": "little"`). Yang
+  dikirim: debit (0xAA15), level (0xAA23), akumulasi (0xAA25, float64), sudut
+  (0xAA22), suhu (0xAA01), dan amplitudo echo (0xAA0B).
+- Kecepatan tidak dikirim karena sudah dikali koreksi K yang disimpan di radar,
+  jadi bukan kecepatan air sebenarnya.
+- Jangan simpan kalibrasi dari menu Kalibrasi Sensor untuk Singgi: debit radar
+  sudah terkoreksi.
+- Cek dulu dengan
+  `$env:GATEWAY_CONFIG="config/gateway-singgi-usb.json"; $env:PROBE_REPEAT=5; npm run probe`:
+  level sekitar 0,6–1,2 m, sudut sekitar 54,1°, amplitudo 78–84 dB.
+- Satu bus RS-485 hanya boleh satu master: tutup `radar_setup.py` dan Radar
+  Application Platform sebelum gateway dijalankan.
+- Jam Windows harus benar (WIB, sinkron internet). Data dengan jam lebih dari
+  5 menit di depan ditolak database.
+
 ## Interval data
 
 Gateway membaca PLC dan mengirim data **tiap 60 detik** (`poll_interval_ms` di
