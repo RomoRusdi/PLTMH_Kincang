@@ -19,11 +19,14 @@
     "inter_read_delay_ms": 300
   },
   "word_order": "little",
+  "_read_blocks_note": "Satu permintaan per data, persis seperti manual Modbus radar (0xAA01, 0xAA0B, 0xAA15, 0xAA22, 0xAA23, 0xAA25). 6 permintaan x jeda 300 ms masih jauh di bawah interval sampel 10 detik.",
   "read_blocks": [
     { "start": 43521, "count": 1 },
     { "start": 43531, "count": 1 },
     { "start": 43541, "count": 2 },
-    { "start": 43554, "count": 7 }
+    { "start": 43554, "count": 1 },
+    { "start": 43555, "count": 2 },
+    { "start": 43557, "count": 4 }
   ],
   "heartbeat_address": null,
   "heartbeat_stale_polls": 2,
