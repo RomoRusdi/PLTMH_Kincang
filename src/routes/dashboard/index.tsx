@@ -66,9 +66,11 @@ function DashboardPage() {
     time: formatTimestamp(p.bucket, 'HH:mm'), avg: p.avg_value,
   }))
 
+  const { station } = useStation()
   const powerForecast = useMemo(() => predictPower(
     (powerTrendData ?? []).map((point) => point.avg_value ?? Number.NaN),
-  ), [powerTrendData])
+    1, 0.25, station?.power_max_kw,
+  ), [powerTrendData, station?.power_max_kw])
 
   const panelTemp = m['PANEL.TEMPERATURE']?.value
   const panelTempColor = panelTemp == null ? 'text-text-secondary'

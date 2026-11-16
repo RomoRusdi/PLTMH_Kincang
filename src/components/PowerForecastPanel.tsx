@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Banknote, Eye, EyeOff, TrendingUp, Zap } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
-import { useStationId } from '@/lib/station'
+import { useStation, useStationId } from '@/lib/station'
 import { useKpiData, useLatestMeasurements, useTrendData } from '@/lib/monitoring'
 import { predictPower } from '@/lib/forecast'
 import { cn } from '@/lib/utils'
@@ -83,8 +83,11 @@ export function PowerForecastPanel({
     try { localStorage.setItem('rfg-energy-tariff', String(next)) } catch { /* penyimpanan browser opsional */ }
   }
 
+  // Selama daya masih estimasi dari debit, energy meter belum mengirim kWh
+  // (selalu 0), jadi estimasi harian memakai daya prediksi × 24 jam.
+  const recordedKwh = estimated ? null : dailyEnergyKwh
   const hourlyRevenue = forecast.powerKw * tariff
-  const dailyRevenue = (dailyEnergyKwh ?? forecast.powerKw * 24) * tariff
+  const dailyRevenue = (recordedKwh ?? forecast.powerKw * 24) * tariff
   const currentWatts = currentPowerKw == null ? null : currentPowerKw * 1000
   const show = (text: string) => (hidden ? MASK : text)
 
@@ -138,7 +141,7 @@ export function PowerForecastPanel({
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <ForecastMetric icon={<Zap className="h-4 w-4" />} label="Estimasi 1 jam" value={show(`${forecast.powerKw.toFixed(1)} kW`)} detail={show(`${Math.round(forecast.powerKw * 1000).toLocaleString('id-ID')} W · ${forecast.confidence}% yakin`)} color="text-accent-yellow" />
           <ForecastMetric icon={<Banknote className="h-4 w-4" />} label="Potensi pendapatan / jam" value={show(formatRupiah(hourlyRevenue))} detail={show(`Rentang ${formatRupiah(forecast.lowerKw * tariff)}–${formatRupiah(forecast.upperKw * tariff)}`)} color="text-status-good" />
-          <ForecastMetric icon={<Banknote className="h-4 w-4" />} label="Estimasi hari ini" value={show(formatRupiah(dailyRevenue))} detail={show(dailyEnergyKwh == null ? 'Daya prediksi × 24 jam' : `${dailyEnergyKwh.toFixed(1)} kWh tercatat`)} color="text-accent-blue" />
+          <ForecastMetric icon={<Banknote className="h-4 w-4" />} label="Estimasi hari ini" value={show(formatRupiah(dailyRevenue))} detail={show(recordedKwh == null ? 'Daya prediksi × 24 jam' : `${recordedKwh.toFixed(1)} kWh tercatat`)} color="text-accent-blue" />
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-text-secondary">
@@ -179,7 +182,11 @@ export function PowerForecastSection({ hideable = false }: { hideable?: boolean 
   }, [])
   const { data: trend, isLoading } = useTrendData(powerTag, from, to, 15)
   const { data: kpi } = useKpiData(stationId, 24)
-  const forecast = useMemo(() => predictPower((trend ?? []).map((p) => p.avg_value ?? Number.NaN)), [trend])
+  const { station } = useStation()
+  const forecast = useMemo(
+    () => predictPower((trend ?? []).map((p) => p.avg_value ?? Number.NaN), 1, 0.25, station?.power_max_kw),
+    [trend, station?.power_max_kw],
+  )
   const current = latest[powerTag]
 
   return (
