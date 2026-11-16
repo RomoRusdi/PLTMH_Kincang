@@ -32,6 +32,15 @@ export function totalEfficiency(turbine: number | null, generator: number | null
   return turbine != null && generator != null ? turbine * generator : fallback
 }
 
+/**
+ * Daya estimasi yang tersimpan sudah dibatasi kapasitas terpasang. Nilai yang
+ * sama dengan kapasitas berarti debit melebihi kemampuan turbin
+ * (Singgi: debit ≥ 3,13 m³/s → 200 kW).
+ */
+export function isAtCapacity(powerKw: number | null | undefined, maxKw: number | null | undefined): boolean {
+  return powerKw != null && maxKw != null && maxKw > 0 && powerKw >= maxKw - 0.05
+}
+
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate()
 }

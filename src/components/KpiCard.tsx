@@ -23,6 +23,8 @@ interface KpiCardProps {
   quality?: string | null
   loading?: boolean
   colorClass?: string
+  /** Catatan kecil di bawah nilai, mis. "Melebihi kapasitas turbin". */
+  note?: ReactNode
 }
 
 export function KpiCard({
@@ -35,6 +37,7 @@ export function KpiCard({
   quality,
   loading = false,
   colorClass = 'text-accent-blue',
+  note,
 }: KpiCardProps) {
   if (loading) {
     return (
@@ -78,6 +81,7 @@ export function KpiCard({
         {trend === 'up' && <span className="text-[10px] text-status-warning">▲</span>}
         {trend === 'down' && <span className="text-[10px] text-accent-blue">▼</span>}
       </div>
+      {note && <p className="text-[10px] leading-snug text-status-warning">{note}</p>}
     </div>
   )
 }
