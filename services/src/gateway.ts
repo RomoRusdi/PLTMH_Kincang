@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import Modbus from 'modbus-serial'
 import mqtt from 'mqtt'
 import {
-  decodeRegisters,
+  decodeTag,
   describeTarget,
   gatewayStatusTopic,
   loadGatewayConfig,
@@ -149,7 +149,7 @@ async function poll(): Promise<TelemetryValue[]> {
     return config.tags.map((tag) => {
       if (plcStale) return { tag: tag.tag, value: null, quality: 'stale' }
       if (tag.source === 'radar' && !radarOk) return { tag: tag.tag, value: null, quality: 'comm_failure' }
-      const value = decodeRegisters(registers, tag.address, tag, config.word_order)
+      const value = decodeTag(registers, tag, config.word_order)
       return { tag: tag.tag, value: Number.isFinite(value) ? value : null, quality: Number.isFinite(value) ? 'good' : 'bad' }
     })
   } catch (error) {

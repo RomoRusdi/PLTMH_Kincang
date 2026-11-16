@@ -20,9 +20,17 @@ export interface TagMapping {
   source?: 'radar'
   /** Cara meringkas sampel bila sample_interval_ms aktif (bawaan 'mean'). */
   aggregate?: 'mean' | 'last' | 'min' | 'max'
+  /**
+   * Batalkan koreksi linear yang sudah diterapkan perangkat: nilai = (mentah − B) ÷ K,
+   * dengan K dan B float32 yang ikut dibaca dari register perangkat (mis. radar
+   * Singgi menyimpan v' = K·v + B di 0xC11E/0xC120). Karena K dibaca langsung,
+   * hasilnya tetap benar walau K diubah di radar.
+   */
+  undo_correction?: { k_address: number; b_address?: number }
 }
 
-export interface ReadBlock { start: number; count: number }
+/** function_code per blok menimpa plc.function_code (mis. blok setting FC03 di antara data FC04). */
+export interface ReadBlock { start: number; count: number; function_code?: 3 | 4 }
 
 /**
  * - `tcp`: Modbus TCP biasa (PLC, atau converter dengan mode "Modbus TCP to RTU").
@@ -112,11 +120,25 @@ export function loadGatewayConfig(): GatewayConfig {
     throw new Error(`sample_interval_ms (${sample}) harus ≥ 1000 dan poll_interval_ms (${config.poll_interval_ms}) harus kelipatannya`)
   }
   const blocks = readBlocks(config)
+  // Semua blok mengisi satu array register berdasarkan alamat, jadi blok FC03
+  // dan FC04 tidak boleh memakai alamat yang sama.
+  const sorted = [...blocks].sort((a, b) => a.start - b.start)
+  for (let i = 1; i < sorted.length; i += 1) {
+    if (sorted[i].start < sorted[i - 1].start + sorted[i - 1].count) {
+      throw new Error(`read_blocks tumpang tindih: ${sorted[i - 1].start} dan ${sorted[i].start}`)
+    }
+  }
   const inBlock = (start: number, end: number) =>
     blocks.some((block) => start >= block.start && end <= block.start + block.count)
   for (const tag of config.tags) {
     if (!inBlock(tag.address, tag.address + registerWidth(tag.type))) {
       throw new Error(`Tag ${tag.tag} (alamat ${tag.address}) di luar read_block/read_blocks`)
+    }
+    const correction = tag.undo_correction
+    for (const address of [correction?.k_address, correction?.b_address]) {
+      if (address != null && !inBlock(address, address + 2)) {
+        throw new Error(`undo_correction tag ${tag.tag} (alamat ${address}) di luar read_block/read_blocks`)
+      }
     }
   }
   for (const [name, address] of [['heartbeat_address', config.heartbeat_address], ['radar_comm_address', config.radar_comm_address]] as const) {
@@ -166,6 +188,22 @@ export function decodeRegisters(registers: number[], offset: number, tag: TagMap
   }
   // Pembulatan menghindari ekor float seperti 1.2340000000000002 akibat scale.
   return Number((raw * tag.scale).toPrecision(9))
+}
+
+/**
+ * Nilai teknik satu tag, termasuk undo_correction. NaN bila K tidak valid
+ * (0, negatif, atau bukan angka) sehingga gateway menandainya 'bad'.
+ */
+export function decodeTag(registers: number[], tag: TagMapping, wordOrder: 'big' | 'little'): number {
+  const value = decodeRegisters(registers, tag.address, tag, wordOrder)
+  const correction = tag.undo_correction
+  if (!correction) return value
+  const asFloat = (address: number) =>
+    decodeRegisters(registers, address, { tag: '', address, type: 'float32', scale: 1 }, wordOrder)
+  const k = asFloat(correction.k_address)
+  const b = correction.b_address == null ? 0 : asFloat(correction.b_address)
+  if (!Number.isFinite(k) || k <= 0 || !Number.isFinite(b)) return Number.NaN
+  return Number(((value - b) / k).toPrecision(9))
 }
 
 /** Kebalikan decodeRegisters; dipakai simulator untuk mengisi register. */

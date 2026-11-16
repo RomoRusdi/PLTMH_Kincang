@@ -20,8 +20,9 @@
 --     sudah dikali K. JANGAN simpan kalibrasi dari menu Kalibrasi Sensor untuk
 --     stasiun ini: kalibrasi web menghitung ulang debit dari kecepatan, padahal
 --     kecepatan radar ikut dikali K.
---   - Kecepatan radar hanya indeks (sudah dikali K), bukan kecepatan air
---     sebenarnya, sehingga tag HYDRO.VELOCITY tidak dibuat.
+--   - Kecepatan di register radar sudah dikali koreksi (v' = K·v + B). Gateway
+--     ikut membaca K dan B dari radar lalu mengirim HYDRO.VELOCITY = (v' − B) ÷ K,
+--     yaitu kecepatan permukaan sebenarnya, tetap benar walau K diubah.
 --   - Per 16-11-2026 debit belum final (akurasi sampai ±30%): K = 3,73 terlalu
 --     besar dan disarankan diturunkan ke 2,5 sementara. Level sudah bisa dipakai.
 --
@@ -107,6 +108,9 @@ values
   ('017b0c85-42ea-4283-ae91-e6343368b854', '416d3544-f13e-4349-ab9b-89f7ecb080b1',
    'HYDRO.WATER_LEVEL', 'Level Air', 'Level air saluran pembawa; tinggi pasang 2,10 m belum diukur langsung, nilai absolut bisa meleset sampai ±10 cm. Alarm < 0,30 m (hampir kering) atau > 1,80 m (hampir penuh)',
    'float', 'm', 'radar FC04 0xAA23 float32', 0.30, null, null, 1.80, 0.02, 3),
+  ('017b0c85-42ea-4283-ae91-e6343368b854', '416d3544-f13e-4349-ab9b-89f7ecb080b1',
+   'HYDRO.VELOCITY', 'Kecepatan Aliran', 'Kecepatan permukaan air sebenarnya: kecepatan radar dibagi koreksi K (dan dikurangi B) yang dibaca langsung dari radar',
+   'float', 'm/s', 'radar FC04 0xAA0F float32, (v - B) ÷ K dari FC03 0xC11E/0xC120', null, null, null, null, 0.01, 2),
   ('017b0c85-42ea-4283-ae91-e6343368b854', '416d3544-f13e-4349-ab9b-89f7ecb080b1',
    'HYDRO.FLOW_RATE', 'Debit Saluran', 'Debit saluran pembawa = debit turbin (tidak ada pelimpah di antaranya), sudah dikali koreksi K di radar. Belum final, akurasi sampai ±30%',
    'float', 'm3/s', 'radar FC04 0xAA15 float32', null, null, null, null, 0.01, 3),

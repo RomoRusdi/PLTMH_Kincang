@@ -126,11 +126,13 @@ export async function readAllBlocks(client: Pick<ModbusClient, 'readInputRegiste
   const retries = Math.max(0, config.plc.retries ?? 0)
   const retryDelay = config.plc.retry_delay_ms ?? 200
   const blocks = readBlocks(config)
-  for (const [index, { start, count }] of blocks.entries()) {
+  for (const [index, { start, count, function_code }] of blocks.entries()) {
     if (index > 0 && delay > 0) await sleep(delay)
+    const fc = function_code ?? config.plc.function_code
     for (let attempt = 0; ; attempt += 1) {
       try {
-        const { data } = config.plc.function_code === 4
+        // Hanya fungsi baca (FC03/FC04); gateway tidak pernah menulis ke perangkat.
+        const { data } = fc === 4
           ? await client.readInputRegisters(start, count)
           : await client.readHoldingRegisters(start, count)
         data.forEach((word, offset) => { registers[start + offset] = word })

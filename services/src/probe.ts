@@ -1,5 +1,5 @@
 import Modbus from 'modbus-serial'
-import { decodeRegisters, describeTarget, loadGatewayConfig, log, readBlocks, registerWidth } from './config.js'
+import { decodeTag, describeTarget, loadGatewayConfig, log, readBlocks, registerWidth } from './config.js'
 import { connectModbus, describeModbusError, listSerialPorts, readAllBlocks } from './modbus.js'
 
 // ============================================================================
@@ -17,7 +17,9 @@ const repeat = Math.max(1, Number(process.env.PROBE_REPEAT ?? 1))
 const interval = Number(process.env.PROBE_INTERVAL_MS ?? 2000)
 const client = new Modbus.default()
 
-const blocks = readBlocks(config).map(({ start, count }) => `${start}..${start + count - 1}`).join(', ')
+const blocks = readBlocks(config)
+  .map(({ start, count, function_code }) => `${start}..${start + count - 1}${function_code ? ` (FC0${function_code})` : ''}`)
+  .join(', ')
 log('probe', `Target ${describeTarget(config)} protocol=${config.plc.protocol ?? 'tcp'} unit=${config.plc.unit_id} FC0${config.plc.function_code ?? 3} blok=[${blocks}]`)
 
 if (config.plc.protocol === 'rtu-serial') {
@@ -105,7 +107,7 @@ for (let round = 1; round <= repeat; round += 1) {
         alamat: tag.address,
         register: (tag as { radar_register?: string }).radar_register ?? '',
         mentah: words.join(' '),
-        nilai: decodeRegisters(registers, tag.address, tag, config.word_order),
+        nilai: decodeTag(registers, tag, config.word_order),
       }
     }))
     // Semua register mentah per blok, untuk mengenali register yang belum dipetakan.
