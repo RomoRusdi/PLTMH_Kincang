@@ -4,7 +4,8 @@ import { useBrand } from '@/lib/brand'
 import { DEVICE_STATE_LABEL, deviceState, type DeviceState } from '@/lib/deviceStatus'
 import { TELEMETRY_TONE, markOldMeasurements, telemetryStatus, useNow } from '@/lib/stationStatus'
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Banknote, TrendingUp, Wifi, WifiOff, RefreshCw, Zap } from 'lucide-react'
+import { Wifi, WifiOff, RefreshCw } from 'lucide-react'
+import { PowerForecastPanel } from '@/components/PowerForecastPanel'
 import { useLatestMeasurements, useAlarms, useDeviceStatus, useTrendData, useAcknowledgeAlarm, useKpiData } from '@/lib/monitoring'
 import { useAuth } from '@/lib/auth'
 import { KpiCard, qualityLabel } from '@/components/KpiCard'
@@ -12,7 +13,7 @@ import { AlarmList } from '@/components/AlarmBadge'
 import { PageHeader } from '@/components/PageHeader'
 import { cn, formatTimestamp, formatRelativeTime } from '@/lib/utils'
 import { predictPower } from '@/lib/forecast'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 
 export const Route = createFileRoute('/dashboard/')({ component: DashboardPage })
 
@@ -114,14 +115,16 @@ function DashboardPage() {
         </section>
         {/* KPI row */}
         <DashKpi m={m} panelTempColor={panelTempColor} powerTag={powerTag} powerEstimated={powerEstimated} />
-        <PowerForecastPanel
+        {/* Superadmin melihat estimasi pendapatan di sini; akun stasiun
+            melihatnya di Trend & History dengan opsi sembunyikan. */}
+        {profile?.role === 'superadmin' && <PowerForecastPanel
           forecast={powerForecast}
           currentPowerKw={m[powerTag]?.quality === 'good' ? (m[powerTag]?.value ?? null) : null}
           estimated={powerEstimated}
           dailyEnergyKwh={stationKpi?.daily_energy ?? null}
           loading={powerForecastLoading}
           hasHistory={powerChartData.some((point) => point.avg != null)}
-        />
+        />}
         {/* Trend + alarms */}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4 xl:gap-6 items-stretch">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 min-w-0">
@@ -337,104 +340,6 @@ function DashKpi({ m, panelTempColor, powerTag, powerEstimated }: { m: MeasMap; 
         <KpiCard label="Suhu Panel" value={m['PANEL.TEMPERATURE']?.value} unit="°C" precision={1} quality={m['PANEL.TEMPERATURE']?.quality} colorClass={panelTempColor} />
       </div>
     </section>
-  )
-}
-
-const DEFAULT_TARIFF_RP_PER_KWH = Number(import.meta.env.VITE_ENERGY_TARIFF_RP_PER_KWH ?? 1500)
-
-function formatRupiah(value: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency', currency: 'IDR', maximumFractionDigits: 0,
-  }).format(Math.max(0, value))
-}
-
-function PowerForecastPanel({
-  forecast,
-  currentPowerKw,
-  dailyEnergyKwh,
-  loading,
-  hasHistory,
-  estimated,
-}: {
-  forecast: ReturnType<typeof predictPower>
-  estimated: boolean
-  currentPowerKw: number | null
-  dailyEnergyKwh: number | null
-  loading: boolean
-  hasHistory: boolean
-}) {
-  const [tariff, setTariff] = useState(() => Number.isFinite(DEFAULT_TARIFF_RP_PER_KWH) && DEFAULT_TARIFF_RP_PER_KWH > 0 ? DEFAULT_TARIFF_RP_PER_KWH : 1500)
-
-  useEffect(() => {
-    try {
-      const saved = Number(localStorage.getItem('rfg-energy-tariff'))
-      if (Number.isFinite(saved) && saved > 0) setTariff(saved)
-    } catch { /* ponytail: storage optional; use the PLN estimate default */ }
-  }, [])
-
-  function updateTariff(value: string) {
-    const next = Number(value)
-    if (!Number.isFinite(next) || next <= 0 || next > 100000) return
-    setTariff(next)
-    try { localStorage.setItem('rfg-energy-tariff', String(next)) } catch { /* optional browser storage */ }
-  }
-
-  const hourlyRevenue = forecast.powerKw * tariff
-  const dailyRevenue = (dailyEnergyKwh ?? forecast.powerKw * 24) * tariff
-  const currentWatts = currentPowerKw == null ? null : currentPowerKw * 1000
-
-  return (
-    <section className="relative overflow-hidden rounded-card border border-accent-purple/30 bg-gradient-to-br from-accent-purple/10 via-surface to-surface p-4 shadow-[0_8px_30px_rgba(139,92,246,.08)]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-accent-purple" aria-hidden="true" />
-            <h2 className="text-sm font-semibold text-text-primary">Estimasi Tren Daya & Pendapatan</h2>
-            <span className="rounded-full bg-accent-purple/15 px-2 py-0.5 text-[10px] text-accent-purple">Regresi linear · 6 jam</span>
-          </div>
-          <p className="mt-1 text-[11px] text-text-secondary">Estimasi sederhana 1 jam ke depan dari tren daya {estimated ? 'estimasi (dihitung dari debit sungai)' : 'aktif'} 6 jam terakhir, bukan model AI. Prediksi dari modul AI akan tampil terpisah setelah terintegrasi. Bukan pengganti meter energi atau tagihan resmi.</p>
-        </div>
-        <label className="flex items-center gap-2 text-[11px] text-text-secondary">
-          Tarif jual
-          <span className="flex items-center rounded-input border border-border bg-surface-2 px-2 focus-within:border-accent-purple">
-            <span className="mr-1">Rp</span>
-            <input
-              aria-label="Tarif energi rupiah per kWh"
-              className="w-20 bg-transparent py-1 text-right text-xs text-text-primary outline-none"
-              type="number" min="1" max="100000" step="1" value={tariff}
-              onChange={(event) => updateTariff(event.target.value)}
-            />
-            <span className="ml-1">/kWh</span>
-          </span>
-        </label>
-      </div>
-
-      {loading ? <div className="mt-4 h-24 skeleton rounded-card" /> : !hasHistory ? (
-        <div className="mt-4 rounded-card border border-accent-orange/30 bg-accent-orange/5 px-3 py-4 text-xs text-accent-orange">
-          Histori daya belum tersedia. Prediksi akan tampil setelah data {estimated ? 'debit' : 'daya aktif'} masuk.
-        </div>
-      ) : (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <ForecastMetric icon={<Zap className="h-4 w-4" />} label="Estimasi 1 jam" value={`${forecast.powerKw.toFixed(1)} kW`} detail={`${Math.round(forecast.powerKw * 1000).toLocaleString('id-ID')} W · ${forecast.confidence}% yakin`} color="text-accent-yellow" />
-          <ForecastMetric icon={<Banknote className="h-4 w-4" />} label="Potensi pendapatan / jam" value={formatRupiah(hourlyRevenue)} detail={`Rentang ${formatRupiah(forecast.lowerKw * tariff)}–${formatRupiah(forecast.upperKw * tariff)}`} color="text-status-good" />
-          <ForecastMetric icon={<Banknote className="h-4 w-4" />} label="Estimasi hari ini" value={formatRupiah(dailyRevenue)} detail={dailyEnergyKwh == null ? 'Daya prediksi × 24 jam' : `${dailyEnergyKwh.toFixed(1)} kWh tercatat`} color="text-accent-blue" />
-        </div>
-      )}
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-text-secondary">
-        <span>{estimated ? 'Daya estimasi (dari debit)' : 'Daya aktual'}: {currentWatts == null ? '—' : `${Math.round(currentWatts).toLocaleString('id-ID')} W`}</span>
-        <span>Tren: {!hasHistory ? '—' : `${forecast.slopeKwPerHour >= 0 ? '+' : ''}${forecast.slopeKwPerHour.toFixed(2)} kW/jam`}</span>
-      </div>
-    </section>
-  )
-}
-
-function ForecastMetric({ icon, label, value, detail, color }: { icon: ReactNode; label: string; value: string; detail: string; color: string }) {
-  return (
-    <div className="rounded-card border border-border bg-surface/70 p-3">
-      <div className="flex items-center gap-2 text-text-secondary"><span className={color}>{icon}</span><span className="text-[11px]">{label}</span></div>
-      <div className={cn('mt-2 text-xl font-bold tabular-nums', color)}>{value}</div>
-      <p className="mt-1 text-[10px] text-text-secondary">{detail}</p>
-    </div>
   )
 }
 

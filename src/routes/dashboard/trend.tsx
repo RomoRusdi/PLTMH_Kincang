@@ -6,6 +6,8 @@ import { BarChart3, RefreshCw, Download, Info } from 'lucide-react'
 import { exportCsv } from '@/lib/exportCsv'
 import { useDailyEstimatedEnergy, useTrendData } from '@/lib/monitoring'
 import { PageHeader } from '@/components/PageHeader'
+import { PowerForecastSection } from '@/components/PowerForecastPanel'
+import { useAuth } from '@/lib/auth'
 import { formatTimestamp } from '@/lib/utils'
 
 export const Route = createFileRoute('/dashboard/trend')({ component: TrendPage })
@@ -32,6 +34,10 @@ const PERIODS = [
 
 function TrendPage() {
   const STATION_ID = useStationId()
+  const { profile } = useAuth()
+  // Superadmin melihat estimasi pendapatan di Dashboard; akun stasiun di sini,
+  // dengan tombol mata untuk menyembunyikan angka.
+  const showForecast = profile != null && profile.role !== 'superadmin'
   const [selectedTag, setSelectedTag] = useState<TagValue>('HYDRO.WATER_LEVEL')
   const [periodHours, setPeriodHours] = useState<number>(6)
   const tagMeta = TAG_OPTIONS.find((t) => t.value === selectedTag) ?? TAG_OPTIONS[0]!
@@ -95,6 +101,7 @@ function TrendPage() {
       <TrendControls selectedTag={selectedTag} setSelectedTag={setSelectedTag}
         periodHours={periodHours} setPeriodHours={setPeriodHours} />
       <div className="dashboard-shell flex-1 overflow-y-auto p-3 sm:p-6 space-y-4">
+        {showForecast && <PowerForecastSection hideable />}
         <div className="flex items-start gap-2 rounded-card border border-accent-blue/20 bg-accent-blue/5 px-3 py-2 text-xs text-text-secondary"><Info className="w-3.5 h-3.5 text-accent-blue mt-0.5 flex-shrink-0" /><span>Grafik menampilkan rata-rata per interval beserta rentang minimum–maksimum. Interval otomatis menyesuaikan periode.{isPower && ' Daya dihitung dari debit radar dengan rumus tabel produksi PLTMH (9,8 × debit × rated head × efisiensi turbin × efisiensi generator), bukan pembacaan energy meter.'}</span></div>
         {stats && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
