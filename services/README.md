@@ -159,6 +159,12 @@ Bedanya dengan Kincang:
   float32/float64 dengan word rendah dulu (`"word_order": "little"`). Yang
   dikirim: debit (0xAA15), level (0xAA23), akumulasi (0xAA25, float64), sudut
   (0xAA22), suhu (0xAA01), dan amplitudo echo (0xAA0B).
+- Radar dibaca tiap 10 detik (`sample_interval_ms`), lalu dikirim **rata-rata
+  per menit** dengan cap waktu awal menit. Akumulasi memakai nilai terakhir
+  (`"aggregate": "last"`), amplitudo memakai nilai maksimum (`"max"`) sehingga
+  peringatan sinyal lemah hanya muncul bila lemah selama 1 menit penuh.
+  Opsi ini juga bisa dipakai stasiun lain; tanpa `sample_interval_ms` gateway
+  tetap mengirim satu pembacaan per `poll_interval_ms` seperti biasa.
 - Kecepatan tidak dikirim karena sudah dikali koreksi K yang disimpan di radar,
   jadi bukan kecepatan air sebenarnya.
 - Jangan simpan kalibrasi dari menu Kalibrasi Sensor untuk Singgi: debit radar

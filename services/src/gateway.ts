@@ -12,6 +12,7 @@ import {
   telemetryTopic,
 } from './config.js'
 import { connectModbus, describeModbusError, readAllBlocks } from './modbus.js'
+import { aggregateSamples, windowStart, type Quality, type TelemetryValue } from './average.js'
 
 // ============================================================================
 // PC Gateway: baca holding register PLC via Modbus TCP, ubah menjadi JSON,
@@ -22,14 +23,6 @@ import { connectModbus, describeModbusError, readAllBlocks } from './modbus.js'
 // ke file buffer dan dikirim ulang berurutan saat koneksi pulih. Database
 // menolak duplikat (station, tag, timestamp) sehingga pengiriman ulang aman.
 // ============================================================================
-
-type Quality = 'good' | 'bad' | 'stale' | 'comm_failure'
-
-interface TelemetryValue {
-  tag: string
-  value: number | null
-  quality: Quality
-}
 
 interface TelemetryPayload {
   station_id: string
@@ -166,25 +159,63 @@ async function poll(): Promise<TelemetryValue[]> {
   }
 }
 
-async function loop() {
-  const startedAt = Date.now()
-  const values = await poll()
+async function publishValues(ts: number, values: TelemetryValue[], note = '') {
   seq = (seq + 1) % Number.MAX_SAFE_INTEGER
   const payload: TelemetryPayload = {
     station_id: config.station_id,
     gateway_id: config.gateway_id,
-    ts: new Date(startedAt).toISOString(),
+    ts: new Date(ts).toISOString(),
     seq,
     values,
   }
   await publish(payload)
   const good = values.filter((value) => value.quality === 'good').length
-  log('gateway', `#${seq} ${good}/${values.length} tag GOOD${client.connected ? '' : ' (buffer)'}`)
+  log('gateway', `#${seq} ${good}/${values.length} tag GOOD${note}${client.connected ? '' : ' (buffer)'}`)
+}
+
+/** Mode biasa: satu pembacaan dikirim apa adanya tiap poll_interval_ms. */
+async function loop() {
+  const startedAt = Date.now()
+  const values = await poll()
+  await publishValues(startedAt, values)
   setTimeout(loop, Math.max(0, config.poll_interval_ms - (Date.now() - startedAt)))
 }
 
-log('gateway', `Config ${process.env.GATEWAY_CONFIG ?? 'config/gateway.json'}: baca ${describeTarget(config)} tiap ${config.poll_interval_ms} ms, publish ke topic ${topic}`)
-void loop()
+/**
+ * Mode rata-rata: baca tiap sample_interval_ms (rata ke jam dinding, mis.
+ * detik :00, :10, … :50), lalu kirim ringkasan per jendela poll_interval_ms
+ * dengan cap waktu awal jendela. Jendela pertama setelah start bisa berisi
+ * sampel lebih sedikit.
+ */
+function averagingLoop(sampleMs: number) {
+  const windowMs = config.poll_interval_ms
+  let currentWindow = windowStart(Date.now(), windowMs)
+  let samples: TelemetryValue[][] = []
+
+  const tick = async () => {
+    const tickWindow = windowStart(Date.now(), windowMs)
+    if (tickWindow !== currentWindow) {
+      if (samples.length > 0) {
+        const values = aggregateSamples(config.tags, samples)
+        const goodSamples = samples.filter((sample) => sample.some((value) => value.quality === 'good')).length
+        await publishValues(currentWindow, values, ` (rata-rata ${goodSamples}/${samples.length} sampel)`)
+      }
+      samples = []
+      currentWindow = tickWindow
+    }
+    samples.push(await poll())
+    const next = (Math.floor(Date.now() / sampleMs) + 1) * sampleMs
+    setTimeout(() => void tick(), next - Date.now())
+  }
+  void tick()
+}
+
+const sampleMs = config.sample_interval_ms
+log('gateway', sampleMs
+  ? `Config ${process.env.GATEWAY_CONFIG ?? 'config/gateway.json'}: baca ${describeTarget(config)} tiap ${sampleMs} ms, kirim rata-rata tiap ${config.poll_interval_ms} ms ke topic ${topic}`
+  : `Config ${process.env.GATEWAY_CONFIG ?? 'config/gateway.json'}: baca ${describeTarget(config)} tiap ${config.poll_interval_ms} ms, publish ke topic ${topic}`)
+if (sampleMs) averagingLoop(sampleMs)
+else void loop()
 
 function shutdown() {
   log('gateway', 'Menghentikan gateway…')

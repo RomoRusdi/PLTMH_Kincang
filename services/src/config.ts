@@ -18,6 +18,8 @@ export interface TagMapping {
   scale: number
   /** 'radar' = nilai diteruskan PLC dari radar; ikut gagal saat komunikasi radar putus. */
   source?: 'radar'
+  /** Cara meringkas sampel bila sample_interval_ms aktif (bawaan 'mean'). */
+  aggregate?: 'mean' | 'last' | 'min' | 'max'
 }
 
 export interface ReadBlock { start: number; count: number }
@@ -54,7 +56,14 @@ export function describeTarget(config: GatewayConfig): string {
 export interface GatewayConfig {
   station_id: string
   gateway_id: string
+  /** Interval kirim ke MQTT (dan interval baca bila sample_interval_ms tidak diisi). */
   poll_interval_ms: number
+  /**
+   * Opsional: baca perangkat tiap sample_interval_ms, lalu kirim rata-rata
+   * per poll_interval_ms dengan cap waktu awal jendela (mis. 10000 → rata-rata
+   * 6 sampel per menit). poll_interval_ms harus kelipatannya.
+   */
+  sample_interval_ms?: number
   plc: {
     /** Untuk tcp / rtu-over-tcp. */
     host?: string
@@ -93,6 +102,10 @@ export function loadGatewayConfig(): GatewayConfig {
   const config = JSON.parse(readFileSync(path, 'utf8').replace(/^﻿/, '')) as GatewayConfig
   if (config.plc.protocol === 'rtu-serial' && !config.plc.serial?.path) {
     throw new Error('protocol rtu-serial membutuhkan plc.serial.path (mis. "COM3") dan plc.serial.baud_rate')
+  }
+  const sample = config.sample_interval_ms
+  if (sample != null && (sample < 1000 || sample > config.poll_interval_ms || config.poll_interval_ms % sample !== 0)) {
+    throw new Error(`sample_interval_ms (${sample}) harus ≥ 1000 dan poll_interval_ms (${config.poll_interval_ms}) harus kelipatannya`)
   }
   const blocks = readBlocks(config)
   const inBlock = (start: number, end: number) =>
