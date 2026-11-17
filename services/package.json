@@ -12,6 +12,7 @@
     "serial-test": "tsx src/serial-test.ts",
     "ingest": "tsx src/ingest.ts",
     "predict": "tsx src/predict.ts",
+    "predict-check": "tsx src/predict-check.ts",
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/demo-stations.ts"
   },
