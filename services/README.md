@@ -179,11 +179,28 @@ Bedanya dengan Kincang:
 
 ## Prediksi AI (LSTM)
 
-`npm run predict` menjalankan worker prediksi (`src/predict.ts`). Tiap 5 menit
-worker mengambil 60 data per menit terakhir dari Supabase, menjalankan model
-ONNX dari AI Engineer, lalu menyimpan 5 langkah prediksi daya ke tabel
-`predictions` (`database/11-prediksi-ai.sql`). Dashboard menampilkannya di
-panel **Prediksi Daya AI**, terpisah dari estimasi regresi linear.
+Prediksi berjalan **di database Supabase** (`database/12-prediksi-ai-cloud.sql`):
+pg_cron tiap 5 menit menghitung model LSTM dari 60 data per menit terakhir dan
+menyimpan 5 langkah prediksi daya ke tabel `predictions`. Tidak perlu komputer
+PLTMH. Dashboard menampilkannya di panel **Prediksi Daya AI**, terpisah dari
+estimasi regresi linear.
+
+Memasang model baru dari AI Engineer (file `.onnx`, metadata `.json`, dan
+`contoh_uji.json` di folder `models`):
+
+```powershell
+npm run predict-check -- models/contoh_uji.json      # model ONNX = hasil Colab?
+npm run model-sql -- models/lstm_kincang.onnx models/lstm_kincang.json config/predict-kincang.json models/contoh_uji.json ../database/13-model-lstm-kincang.sql
+```
+
+Lalu jalankan file SQL hasilnya di SQL Editor. File itu mengecek ulang hasil
+database terhadap Colab, memasang model, dan menonaktifkan versi lama. Ganti
+`version` di metadata setiap model dilatih ulang.
+
+### Alternatif: worker di komputer PLTMH
+
+`npm run predict` menjalankan worker prediksi (`src/predict.ts`) dengan model
+ONNX yang sama, bila suatu saat prediksi perlu dijalankan di luar database.
 
 - Model: `models/lstm_kincang.onnx` dan metadata `models/lstm_kincang.json`
   (nama fitur, lookback, horizon, interval, x_min/x_max dan y_min/y_max dari

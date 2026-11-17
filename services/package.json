@@ -13,6 +13,7 @@
     "ingest": "tsx src/ingest.ts",
     "predict": "tsx src/predict.ts",
     "predict-check": "tsx src/predict-check.ts",
+    "model-sql": "tsx src/model-to-sql.ts",
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/demo-stations.ts"
   },
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
+    "onnx-proto": "^8.0.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },

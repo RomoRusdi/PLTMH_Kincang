@@ -1,12 +1,14 @@
 # Model AI
 
-Folder ini berisi model dari AI Engineer yang dijalankan worker prediksi
-(`npm run predict`, lihat README services bagian *Prediksi AI*).
+Folder ini berisi model dari AI Engineer. Model dijalankan di database
+Supabase: `npm run model-sql` mengubahnya menjadi file SQL (lihat README
+services bagian *Prediksi AI*).
 
 | File | Isi |
 |---|---|
 | `lstm_kincang.onnx` | Model LSTM PLTMH Kincang, masukan `[1, 60, 4]`, keluaran 5 langkah daya ternormalisasi |
 | `lstm_kincang.json` | Metadata model (contoh di bawah) |
+| `contoh_uji.json` | 60 baris masukan + 5 prediksi Keras dari Colab, untuk memastikan hasil web sama dengan Colab |
 
 ## Format metadata
 

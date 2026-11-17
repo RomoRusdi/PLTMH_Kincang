@@ -4,9 +4,9 @@
 -- Jalankan di SQL Editor SETELAH 10-stasiun-singgi.sql. Aman dijalankan ulang.
 --
 -- Hasil prediksi modul AI (AI Engineer) disimpan di tabel predictions oleh
--- worker prediksi (services/src/predict.ts) yang memakai service role key di
--- komputer PLTMH. Browser hanya bisa membaca; tidak ada yang bisa menulis
--- prediksi dari web.
+-- fungsi prediksi di database (12-prediksi-ai-cloud.sql, dijalankan pg_cron).
+-- Alternatifnya worker services/src/predict.ts dengan service role key.
+-- Browser hanya bisa membaca; tidak ada yang bisa menulis prediksi dari web.
 --
 -- Satu kali inferensi = satu baris per langkah horizon (model saat ini: 5
 -- langkah × 1 menit dari 60 data per menit terakhir).
@@ -29,7 +29,7 @@ create table if not exists public.predictions (
   constraint uq_predictions_run unique (station_id, tag_id, model, model_version, base_timestamp, horizon_step)
 );
 
-comment on table public.predictions is 'Hasil prediksi modul AI; ditulis worker prediksi (service role), dibaca dashboard';
+comment on table public.predictions is 'Hasil prediksi modul AI; ditulis fungsi prediksi (pg_cron) atau worker, dibaca dashboard';
 comment on column public.predictions.model is 'Nama model, mis. LSTM';
 comment on column public.predictions.model_version is 'Versi model dari file metadata AI Engineer';
 comment on column public.predictions.base_timestamp is 'Waktu data terakhir yang menjadi masukan model';
@@ -48,7 +48,7 @@ drop policy if exists predictions_select on public.predictions;
 create policy predictions_select on public.predictions
   for select to authenticated using (public.current_user_can_access_station(station_id));
 
--- Tidak ada policy insert/update/delete: hanya service role (worker) yang menulis.
+-- Tidak ada policy insert/update/delete: hanya fungsi database dan service role yang menulis.
 revoke insert, update, delete, truncate on public.predictions from anon, authenticated;
 revoke all on public.predictions from anon;
 
@@ -129,7 +129,7 @@ begin
 end $$;
 
 -- ----------------------------------------------------------------------------
--- Cek setelah worker berjalan:
+-- Cek setelah prediksi berjalan:
 --
 --   select model, model_version, base_timestamp at time zone 'Asia/Jakarta' as data_terakhir_wib,
 --          horizon_step, target_timestamp at time zone 'Asia/Jakarta' as target_wib,
