@@ -1,0 +1,15 @@
+{
+  "_note": "Penghubung HMI Haiwell PLTMH Kincang (npm run hmi-bridge). HMI mengirim lewat WiFi ke broker MQTT memakai fitur 'MQTT' bawaan Haiwell (project identifier deab2612c846ed4c, machine code 7111639034170137024). Program ini hanya membaca topic itu, merata-ratakan per 30 detik, lalu meneruskan ke ingest lokal. 'scale' mengubah nilai HMI ke satuan teknik (kW); selama scale null program hanya menampilkan data (mode lihat). Tiap key HMI baru (arus, tegangan, dst.) ditambahkan di 'values' dengan tag web yang sesuai. Catatan: broker.hivemq.com adalah broker publik tanpa password; siapa pun bisa melihat dan mengirim ke topic ini, karena itu ada batas min/max dan cek jam.",
+  "station_id": "5b0d6f2e-3c1a-4b8e-9f47-2d6a1c8e7b10",
+  "gateway_id": "10422b2e-269a-43ab-b75b-696307ed5878",
+  "source": {
+    "url": "mqtt://broker.hivemq.com:1883",
+    "topic": "data/deab2612c846ed4c/haiwell/7111639034170137024",
+    "group": "Kincang"
+  },
+  "window_ms": 30000,
+  "max_clock_skew_s": 300,
+  "values": [
+    { "key": "MODNET_PLC_KW_TOTAL", "tag": "POWER.ACTIVE_POWER", "scale": null, "min": 0, "max": 400 }
+  ]
+}

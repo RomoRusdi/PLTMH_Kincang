@@ -177,6 +177,23 @@ Bedanya dengan Kincang:
 - Jam Windows harus benar (WIB, sinkron internet). Data dengan jam lebih dari
   5 menit di depan ditolak database.
 
+## Data daya dari HMI (Kincang)
+
+HMI Haiwell Kincang mengirim sendiri lewat WiFi ke broker MQTT (fitur "MQTT"
+bawaan Haiwell, topic `data/deab2612c846ed4c/haiwell/7111639034170137024`).
+`npm run hmi-bridge` (`src/hmi-bridge.ts`, config `config/hmi-kincang.json`)
+subscribe ke topic itu, mengubah nilai dengan `scale`, merata-ratakan per 30
+detik, lalu meneruskan ke ingest lokal sebagai tag Energy Meter
+(`POWER.ACTIVE_POWER`, dst.). HMI tidak diubah dan tidak menerima apa pun.
+
+- Selama `scale` masih `null`, program hanya menampilkan nilai mentah (mode lihat).
+- Broker `broker.hivemq.com` publik tanpa password: siapa pun bisa melihat dan
+  mengirim ke topic itu. Program menolak nilai di luar `min`/`max`, pesan
+  dengan grup lain, dan pesan dengan jam HMI selisih > 5 menit. Untuk jangka
+  panjang, pindahkan ke broker pribadi.
+- Jalan otomatis: `scripts/jalankan-hmi-bridge.cmd` lewat Task Scheduler,
+  log di `logs/hmi-bridge.log`.
+
 ## Prediksi AI (LSTM)
 
 Prediksi berjalan **di database Supabase** (`database/12-prediksi-ai-cloud.sql`):

@@ -14,6 +14,7 @@
     "predict": "tsx src/predict.ts",
     "predict-check": "tsx src/predict-check.ts",
     "model-sql": "tsx src/model-to-sql.ts",
+    "hmi-bridge": "tsx src/hmi-bridge.ts",
     "typecheck": "tsc --noEmit",
     "demo": "tsx src/demo-stations.ts"
   },
