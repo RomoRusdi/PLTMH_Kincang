@@ -12,8 +12,8 @@ import { formatTimestamp } from '@/lib/utils'
 
 export const Route = createFileRoute('/dashboard/trend')({ component: TrendPage })
 
-// Daya memakai estimasi dari debit (HYDRO.POWER_EST), bukan energy meter
-// (POWER.ACTIVE_POWER), karena energy meter belum terhubung ke sistem.
+// Daya estimasi dari debit (HYDRO.POWER_EST) selalu ada; daya terukur energy
+// meter (POWER.*) hanya ada di stasiun yang datanya dikirim HMI (Kincang).
 const POWER_TAG = 'HYDRO.POWER_EST'
 
 const TAG_OPTIONS = [
@@ -21,6 +21,10 @@ const TAG_OPTIONS = [
   { value: 'HYDRO.VELOCITY', label: 'Kecepatan Aliran', color: '#3fb950', unit: 'm/s', high: 3, low: null },
   { value: 'HYDRO.FLOW_RATE', label: 'Debit', color: '#58a6ff', unit: 'm³/s', high: null, low: 0.1 },
   { value: POWER_TAG, label: 'Daya (estimasi dari debit)', color: '#d29922', unit: 'kW', high: null, low: null },
+  { value: 'POWER.ACTIVE_POWER', label: 'Daya Aktif (terukur)', color: '#e3b341', unit: 'kW', high: null, low: null },
+  { value: 'POWER.VOLTAGE', label: 'Tegangan Fasa', color: '#79c0ff', unit: 'V', high: 242, low: 198 },
+  { value: 'POWER.CURRENT', label: 'Arus', color: '#56d364', unit: 'A', high: null, low: null },
+  { value: 'POWER.POWER_FACTOR', label: 'Faktor Daya', color: '#d2a8ff', unit: 'PF', high: null, low: 0.8 },
   { value: 'POWER.FREQUENCY', label: 'Frekuensi', color: '#a371f7', unit: 'Hz', high: 50.5, low: 49.5 },
   { value: 'PANEL.TEMPERATURE', label: 'Suhu Panel', color: '#f0883e', unit: '°C', high: 45, low: null },
 ] as const

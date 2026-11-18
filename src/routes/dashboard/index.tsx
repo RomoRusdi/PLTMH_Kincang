@@ -337,6 +337,11 @@ function DashKpi({ m, panelTempColor, powerTag, powerEstimated }: { m: MeasMap; 
   const { station } = useStation()
   const power = m[powerTag]
   const overCapacity = powerEstimated && power?.quality === 'good' && isAtCapacity(power.value, station?.power_max_kw)
+  // Daya terukur dari HMI: tampilkan estimasi debit sebagai pembanding.
+  const estimate = m['HYDRO.POWER_EST']
+  const powerDetail = !powerEstimated && estimate?.quality === 'good'
+    ? `Estimasi dari debit: ${(estimate.value ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} kW`
+    : undefined
   return (
     <section>
       <div className="mb-3 flex items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-accent-blue">Live telemetry</p><h2 className="mt-1 text-sm font-semibold text-text-primary">Hidrologi & energi</h2></div><span className="hidden text-[10px] text-text-secondary sm:block">Nilai terakhir diterima dari gateway</span></div>
@@ -345,6 +350,7 @@ function DashKpi({ m, panelTempColor, powerTag, powerEstimated }: { m: MeasMap; 
         <KpiCard label="Kecepatan Aliran" value={m['HYDRO.VELOCITY']?.value} unit="m/s" precision={2} quality={m['HYDRO.VELOCITY']?.quality} colorClass="text-accent-blue" />
         <KpiCard label="Debit" value={m['HYDRO.FLOW_RATE']?.value} unit="m³/s" precision={3} quality={m['HYDRO.FLOW_RATE']?.quality} colorClass="text-accent-blue" />
         <KpiCard label={powerEstimated ? 'Daya (estimasi dari debit)' : 'Daya Aktif'} value={power?.value} unit="kW" precision={1} quality={power?.quality} colorClass="text-accent-yellow"
+          detail={powerDetail}
           note={overCapacity ? 'Melebihi kapasitas turbin: debit di atas kemampuan turbin, ditampilkan sebesar kapasitas' : undefined} />
         <KpiCard label="Energi Kumulatif" value={m['POWER.ENERGY_KWH']?.value} unit="kWh" precision={1} quality={m['POWER.ENERGY_KWH']?.quality} colorClass="text-accent-orange" />
         <KpiCard label="Suhu Panel" value={m['PANEL.TEMPERATURE']?.value} unit="°C" precision={1} quality={m['PANEL.TEMPERATURE']?.quality} colorClass={panelTempColor} />
