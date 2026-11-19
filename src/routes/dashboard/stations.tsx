@@ -247,11 +247,13 @@ const CALIBRATION_TONE: Record<CalibrationState, string> = {
 
 function Calibration({ row, now }: { row: StationOverview; now: number }) {
   const status = calibrationStatus(row.calibration_at, row.calibration_interval_days, now)
+  // Kalibrasi di dalam radar (mis. koreksi K Singgi) tidak punya nomor versi web.
+  const source = row.calibration_method === 'device' ? (row.calibration_note ?? 'di radar') : `v${row.calibration_version}`
   const detail = status.state === 'none'
     ? 'Memakai hitungan radar'
     : status.state === 'overdue'
-      ? `v${row.calibration_version} · lewat ${Math.abs(status.dueInDays ?? 0)} hari`
-      : `v${row.calibration_version} · ${status.ageDays} hari lalu`
+      ? `${source} · lewat ${Math.abs(status.dueInDays ?? 0)} hari`
+      : `${source} · ${status.ageDays} hari lalu`
   return (
     <span className="inline-flex flex-col">
       <span className={cn('w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', CALIBRATION_TONE[status.state])}>{CALIBRATION_LABEL[status.state]}</span>

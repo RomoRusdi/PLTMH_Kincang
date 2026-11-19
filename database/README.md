@@ -20,12 +20,13 @@ aman dijalankan ulang.
 | `12-prediksi-ai-cloud.sql` | Prediksi AI dijalankan di database: tabel `ai_models`, hitung LSTM, jadwal pg_cron tiap 5 menit (tanpa komputer PLTMH) |
 | `13-model-lstm-kincang.sql` | Model LSTM Kincang dari AI Engineer (dibuat otomatis oleh `npm run model-sql`); mengecek hasil terhadap Colab sebelum dipasang |
 | `14-energy-meter-hmi-kincang.sql` | Energy meter Kincang dari HMI (MQTT Haiwell lewat `hmi-bridge`): aktifkan perangkat dan tag yang dikirim HMI (daya aktif = KW_TOTAL_20KV ÷ 4) |
+| `15-kalibrasi-di-radar.sql` | Kalibrasi di perangkat (mis. koreksi K radar Singgi) tampil sebagai "Terkalibrasi · di radar" di Ringkasan Stasiun dan menu Kalibrasi |
 | `demo-history.sql` | Opsional: riwayat dummy 3 hari untuk grafik |
 | `demo-5-stasiun.sql` | Opsional: 4 stasiun [DEMO] tambahan; hapus sebelum dipakai operasional |
 
 ## Project Supabase baru
 
-1. Jalankan `01` sampai `14` berurutan.
+1. Jalankan `01` sampai `15` berurutan.
 2. Deploy Edge Function `supabase/functions/admin-users` (Edge Functions →
    Deploy a new function → Via Editor → nama `admin-users`). Dipakai halaman
    **Pengguna** untuk membuat akun.

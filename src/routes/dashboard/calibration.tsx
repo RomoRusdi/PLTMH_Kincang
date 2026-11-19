@@ -108,6 +108,9 @@ function CalibrationPage() {
 // ---------------------------------------------------------------------------
 
 function ActiveCalibration({ calibration, stationId }: { calibration: StationCalibration | null; stationId: string }) {
+  const { station } = useStation()
+  // Kalibrasi di dalam radar (migrasi 15), mis. koreksi K PLTM Singgi.
+  const device = !calibration && station?.device_calibrated_at ? station : null
   const { data: live } = useLatestMeasurements(stationId)
   const airGap = live['HYDRO.AIR_GAP']
   const velocity = live['HYDRO.VELOCITY']
@@ -118,17 +121,19 @@ function ActiveCalibration({ calibration, stationId }: { calibration: StationCal
     <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
       <div className="scada-card">
         <div className="flex items-start gap-3">
-          <span className={cn('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl', calibration ? 'bg-status-good/10 text-status-good' : 'bg-accent-yellow/10 text-accent-yellow')}>
-            {calibration ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
+          <span className={cn('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl', calibration || device ? 'bg-status-good/10 text-status-good' : 'bg-accent-yellow/10 text-accent-yellow')}>
+            {calibration || device ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
           </span>
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-text-primary">
-              {calibration ? `Kalibrasi versi ${calibration.version} aktif` : 'Belum dikalibrasi'}
+              {calibration ? `Kalibrasi versi ${calibration.version} aktif` : device ? 'Terkalibrasi di radar' : 'Belum dikalibrasi'}
             </h2>
             <p className="mt-0.5 text-xs text-text-secondary">
               {calibration
                 ? `Berlaku sejak ${formatTimestamp(calibration.effective_from, 'dd MMM yyyy HH:mm')} · ${calibration.method === 'field_reference' ? 'dari pengukuran lapangan' : 'parameter manual'}${calibration.created_by_email ? ` · ${calibration.created_by_email}` : ''}`
-                : 'Level air dan debit masih memakai hitungan internal radar. Simpan kalibrasi untuk memakai parameter lokasi ini.'}
+                : device
+                  ? `${device.device_calibration_note ?? 'Koreksi di perangkat'} · sejak ${formatTimestamp(device.device_calibrated_at, 'dd MMM yyyy HH:mm')}. Debit dikoreksi di dalam radar, jadi kalibrasi dari menu ini tidak diperlukan untuk stasiun ini.`
+                  : 'Level air dan debit masih memakai hitungan internal radar. Simpan kalibrasi untuk memakai parameter lokasi ini.'}
             </p>
           </div>
         </div>
@@ -167,7 +172,7 @@ function CalibrationSchedule({ calibration }: { calibration: StationCalibration 
   const [saving, setSaving] = useState(false)
   // Daftar stasiun bisa selesai dimuat setelah komponen tampil: ikuti nilai tersimpan.
   useEffect(() => { setDraft(String(interval)) }, [interval])
-  const status = calibrationStatus(calibration?.effective_from ?? null, interval)
+  const status = calibrationStatus(calibration?.effective_from ?? station?.device_calibrated_at ?? null, interval)
 
   async function saveInterval() {
     const days = Number(draft)

@@ -71,9 +71,9 @@ function MapPage() {
           velocity: overview?.velocity_ms ?? null,
           latest_at: overview?.last_data_at ?? null,
           alarm_count: overview?.active_alarms ?? 0,
-          calibration_label: calibration.state === 'none' || overview?.calibration_version == null
+          calibration_label: calibration.state === 'none' || !overview
             ? CALIBRATION_LABEL.none
-            : `${CALIBRATION_LABEL[calibration.state]} (v${overview.calibration_version}, ${calibration.ageDays} hari)`,
+            : `${CALIBRATION_LABEL[calibration.state]} (${overview.calibration_method === 'device' ? 'di radar' : `v${overview.calibration_version}`}, ${calibration.ageDays} hari)`,
         }]
       })
     },

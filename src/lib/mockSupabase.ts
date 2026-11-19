@@ -304,7 +304,7 @@ function stationOverviewRows(): Row[] {
       velocity_ms: velocity?.value ?? null, velocity_quality: velocity?.quality ?? null,
       flow_m3s: flow?.value ?? null, flow_quality: flow?.quality ?? null,
       active_alarms: alarms.length, critical_alarms: alarms.filter((a) => a.priority === 'critical').length,
-      calibration_version: calibration?.version ?? null, calibration_at: calibration?.effective_from ?? null, calibration_method: calibration?.method ?? null,
+      calibration_version: calibration?.version ?? null, calibration_at: calibration?.effective_from ?? null, calibration_method: calibration?.method ?? null, calibration_note: calibration?.notes ?? null,
     }
   })
 }

@@ -117,6 +117,9 @@ export interface Station {
   /** Efisiensi turbin dan generator (09-daya-tabel-pltmh.sql); bila keduanya diisi, menggantikan power_efficiency. */
   power_turbine_efficiency: number | null
   power_generator_efficiency: number | null
+  /** Kalibrasi di dalam perangkat, mis. koreksi K radar Singgi (migrasi 15). */
+  device_calibrated_at?: string | null
+  device_calibration_note?: string | null
   created_at: string
   updated_at: string
 }
@@ -176,7 +179,9 @@ export type StationOverview = {
   critical_alarms: number
   calibration_version: number | null
   calibration_at: string | null
-  calibration_method: CalibrationMethod | null
+  /** 'device' = kalibrasi di dalam perangkat (mis. koreksi K radar), migrasi 15. */
+  calibration_method: CalibrationMethod | 'device' | null
+  calibration_note: string | null
 }
 
 export interface Device {
@@ -460,6 +465,7 @@ export interface Database {
           elevation_m: number | null; calibration_interval_days: number; created_at: string; updated_at: string
           power_head_m: number | null; power_efficiency: number; power_max_kw: number | null; power_design_flow_m3s: number | null
           power_turbine_efficiency: number | null; power_generator_efficiency: number | null
+          device_calibrated_at?: string | null; device_calibration_note?: string | null
         }
         Insert: {
           id?: string; name: string; location: string
