@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
-import { AlertTriangle, ArrowRight, BellRing, CheckCircle2, Gauge, RefreshCw, Search, WifiOff } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BellRing, CheckCircle2, Gauge, Layers, RefreshCw, Search, WifiOff } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, ErrorState, LoadingState } from '@/components/UiState'
 import { useStation } from '@/lib/station'
@@ -16,6 +16,7 @@ import {
 } from '@/lib/stationStatus'
 import type { Quality, StationOverview } from '@/lib/supabase'
 import { cn, formatRelativeTime } from '@/lib/utils'
+import { StatCard } from '@/components/StatCard'
 
 export const Route = createFileRoute('/dashboard/stations')({ component: StationsOverviewPage })
 
@@ -262,7 +263,7 @@ function Calibration({ row, now }: { row: StationOverview; now: number }) {
   )
 }
 
-function SummaryTile({ label, value, tone, icon: Icon, active, onClick }: {
+function SummaryTile({ label, value, tone, icon, active, onClick }: {
   label: string
   value: number
   tone?: 'warning' | 'bad'
@@ -270,16 +271,8 @@ function SummaryTile({ label, value, tone, icon: Icon, active, onClick }: {
   active: boolean
   onClick: () => void
 }) {
-  const valueTone = value === 0 || !tone ? 'text-text-primary' : tone === 'bad' ? 'text-accent-red' : 'text-accent-yellow'
-  return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={cn('scada-card flex items-start justify-between gap-2 text-left transition-colors', active ? 'border-accent-blue ring-1 ring-accent-blue/40' : 'hover:border-accent-blue/40')}>
-      <span>
-        <span className="block text-xs text-text-secondary">{label}</span>
-        <span className={cn('mt-1 block text-2xl font-bold tabular-nums', valueTone)}>{value}</span>
-      </span>
-      {Icon && <Icon className={cn('h-4 w-4 flex-shrink-0', valueTone)} aria-hidden="true" />}
-    </button>
-  )
+  const statTone = value === 0 || !tone ? 'default' : tone === 'bad' ? 'red' : 'yellow'
+  return <StatCard label={label} value={value} icon={icon ?? Layers} tone={icon ? statTone : 'blue'} valueTone={statTone} active={active} onClick={onClick} />
 }
 
 function isCalibrationIssue(row: StationOverview, now: number) {

@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/UiState'
 import { exportCsv } from '@/lib/exportCsv'
 import { useAlarmStatistics, useMonthlyReports } from '@/lib/monitoring'
 import { formatTimestamp, formatValue } from '@/lib/utils'
+import { StatCard as SharedStatCard, type StatTone } from '@/components/StatCard'
 import { useThemeColor } from '@/lib/useThemeColor'
 import type { MonthlyReport } from '@/lib/supabase'
 
@@ -15,8 +16,13 @@ export const Route = createFileRoute('/dashboard/reports')({ component: ReportsP
 
 const COLORS: Record<string, string> = { critical: '#f85149', high: '#e3b341', medium: '#d29922', low: '#58a6ff', info: '#8b949e' }
 
+const REPORT_TONE: Record<string, StatTone> = {
+  'text-accent-green': 'green', 'text-accent-blue': 'blue', 'text-accent-red': 'red', 'text-accent-orange': 'orange', 'text-accent-purple': 'purple',
+}
+
 function StatCard({ label, value, color = 'text-text-primary', suffix = '' }: { label: string; value: number | null | undefined; color?: string; suffix?: string }) {
-  return <div className="bg-surface border border-border rounded-card p-4"><p className="text-[10px] text-text-secondary mb-1">{label}</p><p className={`text-2xl font-bold tabular-nums ${color}`}>{formatValue(value, suffix || null, 1)}</p></div>
+  const shown = value == null || Number.isNaN(value) ? '—' : value.toLocaleString('id-ID', { maximumFractionDigits: 1 })
+  return <SharedStatCard label={label} value={shown} unit={suffix || undefined} valueTone={REPORT_TONE[color] ?? 'default'} dimmed={value == null} />
 }
 
 function ChartBox({ title, loading, children }: { title: string; loading: boolean; children: ReactNode }) {

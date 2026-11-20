@@ -6,6 +6,7 @@ import { useDeviceStatus } from '@/lib/monitoring'
 import { PageHeader } from '@/components/PageHeader'
 import { EmptyState, LoadingState } from '@/components/UiState'
 import { cn, formatRelativeTime } from '@/lib/utils'
+import { StatCard, type StatTone } from '@/components/StatCard'
 import type { DeviceHealthView } from '@/lib/supabase'
 import { DEVICE_STATE_LABEL, deviceState, isAttentionState, isOfflineState, type DeviceState } from '@/lib/deviceStatus'
 
@@ -66,8 +67,10 @@ function DevicesPage() {
   </div>
 }
 
-function SummaryCard({ label, value, detail, icon: Icon, tone }: { label: string; value: number; detail: string; icon: typeof Cpu; tone: string }) {
-  return <div className="scada-card flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs text-text-secondary">{label}</p><p className={cn('mt-1 text-2xl font-bold tabular-nums', tone)}>{value}</p><p className="mt-1 truncate text-[10px] text-text-secondary">{detail}</p></div><Icon className={cn('h-5 w-5 flex-shrink-0', tone)} aria-hidden="true" /></div>
+const SUMMARY_TONE: Record<string, StatTone> = { 'text-accent-blue': 'blue', 'text-status-good': 'green', 'text-status-bad': 'red', 'text-accent-yellow': 'yellow' }
+
+function SummaryCard({ label, value, detail, icon, tone }: { label: string; value: number; detail: string; icon: typeof Cpu; tone: string }) {
+  return <StatCard label={label} value={value} icon={icon} tone={SUMMARY_TONE[tone] ?? 'default'} valueTone="default" caption={detail} />
 }
 
 function FilterButton({ active, onClick, label, count, tone }: { active: boolean; onClick: () => void; label: string; count: number; tone?: 'good' | 'bad' | 'warning' }) {

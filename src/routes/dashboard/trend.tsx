@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { PowerForecastSection } from '@/components/PowerForecastPanel'
 import { useAuth } from '@/lib/auth'
 import { formatTimestamp } from '@/lib/utils'
+import { StatCard } from '@/components/StatCard'
 
 export const Route = createFileRoute('/dashboard/trend')({ component: TrendPage })
 
@@ -115,12 +116,8 @@ function TrendPage() {
               { l: 'Minimum', v: stats.min.toFixed(2) },
               { l: 'Total Sampel', v: String(stats.n) },
             ].map((s) => (
-              <div key={s.l} className="scada-card scada-card-interactive p-3">
-                <p className="text-[10px] text-text-secondary mb-1">{s.l}</p>
-                <p className="text-lg font-bold tabular-nums" style={{ color: tagMeta.color }}>
-                  {s.v} {s.l !== 'Total Sampel' && <span className="text-xs font-normal text-text-secondary">{tagMeta.unit}</span>}
-                </p>
-              </div>
+              <StatCard key={s.l} label={s.l} value={<span style={{ color: tagMeta.color }}>{s.v}</span>}
+                unit={s.l !== 'Total Sampel' ? tagMeta.unit : undefined} caption={tagMeta.label} />
             ))}
           </div>
         )}

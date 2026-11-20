@@ -399,6 +399,12 @@ function rpc(name: string, args: Record<string, unknown>) {
         buckets.set(timestamp, [1.35 + Math.sin(hours * 1.7) * 0.08 + Math.sin(hours * 0.4) * 0.03])
       }
     }
+    if (!buckets.size && args.p_tag_id === 'HYDRO.FLOW_RATE' && (!args.p_station_id || args.p_station_id === STATION_ID)) {
+      for (let timestamp = Math.max(from, to - 6 * 3600000); timestamp <= to; timestamp += interval) {
+        const hours = (timestamp - from) / 3600000
+        buckets.set(timestamp, [3.05 + Math.sin(hours * 1.3) * 0.25 + Math.sin(hours * 0.5) * 0.1])
+      }
+    }
     // Daya estimasi tiruan (≈ satu sampel per menit) agar grafik daya dan
     // produksi energi harian di mode demo tidak kosong. Satu jam setiap ±4 hari
     // dikosongkan untuk meniru gangguan komunikasi.

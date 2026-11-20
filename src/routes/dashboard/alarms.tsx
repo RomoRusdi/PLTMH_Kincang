@@ -9,6 +9,7 @@ import { formatTimestamp, calculateDuration } from '@/lib/utils'
 import type { Alarm, AlarmPriority, AlarmStatus } from '@/lib/supabase'
 import { EmptyState, ErrorState, LoadingState } from '@/components/UiState'
 import { AlertOctagon, BellRing, CheckCircle2, Search } from 'lucide-react'
+import { StatCard } from '@/components/StatCard'
 
 export const Route = createFileRoute('/dashboard/alarms')({ component: AlarmsPage })
 
@@ -142,11 +143,6 @@ function AlarmsPage() {
   )
 }
 
-function AlarmSummary({ icon: Icon, label, value, tone }: { icon: typeof BellRing; label: string; value: number; tone: 'blue' | 'orange' | 'red' | 'yellow' | 'green' }) {
-  const colors = {
-    blue: 'text-accent-blue bg-accent-blue/10', orange: 'text-accent-orange bg-accent-orange/10',
-    red: 'text-accent-red bg-accent-red/10', yellow: 'text-accent-yellow bg-accent-yellow/10',
-    green: 'text-status-good bg-status-good/10',
-  }
-  return <div className="scada-card flex items-center gap-3 p-3"><span className={`rounded-input p-2 ${colors[tone]}`}><Icon className="h-4 w-4" aria-hidden="true" /></span><div><p className="text-lg font-semibold text-text-primary">{value}</p><p className="text-[10px] text-text-secondary">{label}</p></div></div>
+function AlarmSummary({ icon, label, value, tone }: { icon: typeof BellRing; label: string; value: number; tone: 'blue' | 'orange' | 'red' | 'yellow' | 'green' }) {
+  return <StatCard label={label} value={value} icon={icon} tone={tone} valueTone={value > 0 && tone !== 'green' && tone !== 'blue' ? tone : 'default'} />
 }
